@@ -28,8 +28,6 @@ from model_predicate import determine_sentiment, calc_feature_all, selected_feat
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from TopicModel import TopicModel
-
-
 from fastapi.middleware.cors import CORSMiddleware
 
 # import os
@@ -194,7 +192,6 @@ model = AutoModel(
 )
 
 reg_spks_files = [
-    # "speaker/speaker1_a_cn_16k.wav"
     "speaker/agent_0013.wav",
     # "speaker/client_4366.wav"
 ]
@@ -216,12 +213,9 @@ def reg_spk_init(files):
 reg_spks = reg_spk_init(reg_spks_files)
 
 
-
-
-
 def process_vad_audio(audio, sv=True, lang="auto"):
     # update at 20240917
-    # speaker_label = "client"
+    speaker_label = "client"
     logger.debug(f"[process_vad_audio] process audio(length: {len(audio)})")
     if not sv:
         return asr_pipeline(audio, language=lang.strip())
@@ -231,16 +225,11 @@ def process_vad_audio(audio, sv=True, lang="auto"):
         res_sv = sv_pipeline([audio, v["data"]], thr=config.sv_thr)
         logger.debug(f"[speaker check] {k}: {res_sv}")
         if res_sv["score"] >= config.sv_thr:
-            hit = True
-            # update at 20240917
-            # logger.debug(f"[speaker check identified] {k}: score at {res_sv['score']}")
-            # speaker_label = k.split("_")[0]
-            # break
+            logger.debug(f"[speaker check identified] {k}: score at {res_sv['score']}")
+            speaker_label = "agent"
+            break
 
-    return asr_pipeline(audio, language=lang.strip()) if hit else None
-
-    # update at 20240917
-    # return speaker_label, asr_pipeline(audio, language=lang.strip())
+    return speaker_label, asr_pipeline(audio, language=lang.strip())
 
 
 app = FastAPI()
@@ -281,7 +270,9 @@ async def custom_exception_handler(request: Request, exc: Exception):
         content=TranscriptionResponse(
             code=status_code,
             msg=message,
-            data=data
+            data=data,
+            type='error',
+            timestamp=datetime.utcnow().isoformat(),  # UTC timestamp
         ).model_dump()
     )
 
@@ -291,6 +282,9 @@ class TranscriptionResponse(BaseModel):
     code: int
     msg: str
     data: str
+    type: str  # e.g., 'stt' (speech-to-text), 'sentiment', 'score'
+    timestamp: str  # Include timestamp as an ISO format string
+    speaker_label: str = ""  # Speaker label
 
 
 # 全局变量
@@ -326,7 +320,7 @@ async def websocket_endpoint(websocket: WebSocket):
         # 4.  接收音频数据并进行处理
         while True:
             data = await websocket.receive_bytes()  # 接收客户端传输的二进制音频数据
-            logger.debug(f"received {len(data)} bytes")
+            # logger.debug(f"received {len(data)} bytes")
 
             audio_buffer = np.append(audio_buffer, np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0)
 
@@ -343,9 +337,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 # 5. VAD 推断音频块
                 res = model.generate(input=chunk, cache=cache, is_final=False, chunk_size=config.chunk_size_ms)
                 # 6. 检查推理结果
-                logger.debug(f"vad inference: {res}")
                 if len(res[0]["value"]):  # 如果result中有值
                     vad_segments = res[0]["value"]
+                    logger.debug(f"vad inference: {vad_segments}")
                     # 7. 提取语音活动时间段
                     for segment in vad_segments:
                         if segment[0] > -1:  # speech begin
@@ -373,8 +367,8 @@ async def websocket_endpoint(websocket: WebSocket):
                             })
 
                             # 调用process_vad_audio()函数对这些片段进一步处理 --- old
-                            result = process_vad_audio(audio_vad[beg:end], sv, lang)  # todo: async
-                            logger.debug(f"[process_vad_audio] {result}")
+                            speaker_label, result = process_vad_audio(audio_vad[beg:end], sv, lang)  # todo: async
+                            logger.debug(f"[process_vad_audio] {speaker_label}: {result}")
                             audio_vad = audio_vad[end:]  # 已经处理过的片段移除，保留未处理的部分
                             last_vad_beg = last_vad_end = -1  # 重置 VAD 片段标记
 
@@ -383,6 +377,9 @@ async def websocket_endpoint(websocket: WebSocket):
                                     code=0,
                                     msg=f"success",
                                     data=format_str_v3(result[0]['text']),
+                                    type="STT",
+                                    timestamp=datetime.utcnow().isoformat(),
+                                    speaker_label=speaker_label
                                 )
                                 await websocket.send_json(response.model_dump())
 
@@ -465,7 +462,7 @@ async def audio_predict_sentiment():
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 # 更新折线图
-@app.post("/update-chart")
+@app.post("/update-chart/")
 async def update_chart():
     try:
         accumulate_end_time = 0  # 用于累积的结束时间
