@@ -540,7 +540,7 @@
                         <!--                            start record button -20240909-->
                         <!-- Speaker Verification Checkbox -->
                         <label style="margin-right: 10px;">
-                            <input type="checkbox" id="speakerVerification"> Speaker Verification
+                            <input type="checkbox" id="speakerVerification" checked> Speaker Verification
                         </label>
 
                         <!-- Language Input -->
@@ -845,7 +845,7 @@
                                                 const div = document.createElement('div');
                                                 div.className = 'hint-option';
                                                 div.innerHTML = `
-                <input type="checkbox" id="${hint.id}" value="${hint.text}">
+                <input type="checkbox" id="${hint.id}" value="${hint.text}" checked>
                 <label for="${hint.id}">${hint.text}</label>
             `;
                                                 container.appendChild(div);

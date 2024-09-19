@@ -122,12 +122,12 @@ function startRecording() {
         timeInte = setInterval(function () {
             if (ws.readyState === 1) {  // 如果WebSocket连接是打开的状态
                 var audioBlob = record.getBlob();   // 获取录音的Blob对象(JavaScript 中的一种对象，用于存储二进制数据。它可以存储各种类型的文件数据，比如图片、音频、视频)
-                console.log('Blob size: ', audioBlob.size);
+                // console.log('Blob size: ', audioBlob.size);
 
                 // Read the Blob content for debugging
                 var reader = new FileReader();
                 reader.onloadend = function () {
-                    console.log('Blob content: ', new Uint8Array(reader.result));
+                    // console.log('Blob content: ', new Uint8Array(reader.result));
                     //2.b 发送音频数据到服务器
                     ws.send(audioBlob);
                     console.log('Sending audio data');
@@ -144,90 +144,100 @@ function startRecording() {
         try {
             var resJson = JSON.parse(evt.data);  // 尝试解析JSON数据
             var textData = resJson.data;         // 提取转录的文本数据
+            var speaker = resJson.speaker_label || 'unknown speaker'; // Handle missing speaker_label
+            var type = resJson.type || 'unknown type';
+            var timestamp = resJson.timestamp || 'no timestamp';
 
-            // 累积 pendingTextData 的词数和当前 textData 的词数
-            var totalWords = pendingTextData.split(' ').length + textData.split(' ').length;
+            // Further logging to check if the values are extracted correctly
+            console.log('Type:', type);
+            console.log('Timestamp:', timestamp);
 
-            // 如果总词数少于 7 个词，继续累积
-            if (textData && totalWords < minWordCount) {
-                pendingTextData += ' ' + textData;  // 累积 pendingTextData
-                console.log('Text data:', textData);
-                console.log('Total words:', totalWords);
+            if (speaker.toLowerCase().includes('agent')) {
+               transcriptionResult.textContent += "\n" + speaker + ": " + (resJson.data || 'No speech recognized');
             } else {
-                // 如果总词数大于等于 7 个词，或者已经合并了足够的 textData，进行发送
-                textData = pendingTextData ? pendingTextData + ' ' + textData : textData;
-                pendingTextData = '';  // 清空 pendingTextData
+                // 累积 pendingTextData 的词数和当前 textData 的词数
+                var totalWords = pendingTextData.split(' ').length + textData.split(' ').length;
 
-                console.log('Text data:', textData);
-                console.log('Total words:', totalWords);
+                // 如果总词数少于 7 个词，继续累积
+                if (textData && totalWords < minWordCount) {
+                    pendingTextData += ' ' + textData;  // 累积 pendingTextData
+                    console.log('Text data:', textData);
+                    console.log('Total words:', totalWords);
+                } else {
+                    // 如果总词数大于等于 7 个词，或者已经合并了足够的 textData，进行发送
+                    textData = pendingTextData ? pendingTextData + ' ' + textData : textData;
+                    pendingTextData = '';  // 清空 pendingTextData
 
-                // 显示转录结果
-                transcriptionResult.textContent += "\n" + (resJson.data || 'No speech recognized');
+                    console.log('Text data:', textData);
+                    console.log('Total words:', totalWords);
 
-                // 发送到 /predict-sentiment/
-                fetch('http://127.0.0.1:8000/predict-sentiment/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({text: textData})  // 将 textData 发送到后端
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.sentiment) {
-                            sentimentResult.textContent = `Sentiment: ${data.sentiment}`;  // 显示情感分析结果
-                        } else {
-                            sentimentResult.textContent = `Error: ${data.error}`;  // 显示错误信息
-                        }
+                    // 显示转录结果
+                    transcriptionResult.textContent += "\n" + speaker + ": " + (resJson.data || 'No speech recognized');
+
+                    // 发送到 /predict-sentiment/
+                    fetch('http://127.0.0.1:8000/predict-sentiment/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({text: textData})  // 将 textData 发送到后端
                     })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        sentimentResult.textContent = `Error: ${error}`;
-                    });
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.sentiment) {
+                                sentimentResult.textContent = `Sentiment: ${data.sentiment}`;  // 显示情感分析结果
+                            } else {
+                                sentimentResult.textContent = `Error: ${data.error}`;  // 显示错误信息
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            sentimentResult.textContent = `Error: ${error}`;
+                        });
 
 
-                // 发送到 /topic-model/
-                fetch('http://127.0.0.1:8000/topic-model/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({text: textData})  // 将 textData 发送到后端进行主题分析
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.topics) {
-                            // 清空之前的 tags 容器
-                            const tagsContainer = document.getElementById("tags-container");
-                            tagsContainer.innerHTML = '';
-
-                            // 遍历 topics 数组，动态生成并插入标签
-                            data.topics.forEach(topic => {
-                                const tagElement = document.createElement('div');
-                                tagElement.className = 'tag tag-primary'; // 您可以根据需要使用不同的类，如 tag-success, tag-info 等
-                                tagElement.textContent = topic;  // 将每个主题设置为标签内容
-
-                                // 创建关闭按钮并附加到标签
-                                const closeButton = document.createElement('span');
-                                closeButton.className = 'close';
-                                closeButton.textContent = '×';
-                                closeButton.onclick = function () {
-                                    tagsContainer.removeChild(tagElement);  // 点击关闭按钮时移除标签
-                                };
-
-                                tagElement.appendChild(closeButton);  // 将关闭按钮添加到标签
-                                tagsContainer.appendChild(tagElement);  // 将标签插入到 tags-container 中
-                            });
-                        } else {
-                            topicModelResult.textContent = `Error: ${data.error}`;  // 显示错误信息
-                        }
+                    // 发送到 /topic-model/
+                    fetch('http://127.0.0.1:8000/topic-model/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({text: textData})  // 将 textData 发送到后端进行主题分析
                     })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        topicModelResult.textContent = `Error: ${error}`;
-                    });
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.topics) {
+                                // 清空之前的 tags 容器
+                                const tagsContainer = document.getElementById("tags-container");
+                                tagsContainer.innerHTML = '';
 
+                                // 遍历 topics 数组，动态生成并插入标签
+                                data.topics.forEach(topic => {
+                                    const tagElement = document.createElement('div');
+                                    tagElement.className = 'tag tag-primary'; // 您可以根据需要使用不同的类，如 tag-success, tag-info 等
+                                    tagElement.textContent = topic;  // 将每个主题设置为标签内容
 
+                                    // 创建关闭按钮并附加到标签
+                                    const closeButton = document.createElement('span');
+                                    closeButton.className = 'close';
+                                    closeButton.textContent = '×';
+                                    closeButton.onclick = function () {
+                                        tagsContainer.removeChild(tagElement);  // 点击关闭按钮时移除标签
+                                    };
+
+                                    tagElement.appendChild(closeButton);  // 将关闭按钮添加到标签
+                                    tagsContainer.appendChild(tagElement);  // 将标签插入到 tags-container 中
+                                });
+                            } else {
+                                topicModelResult.textContent = `Error: ${data.error}`;  // 显示错误信息
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            topicModelResult.textContent = `Error: ${error}`;
+                        });
+
+                }
             }
 
             // // 音频情感分析处理 - new model- 20240915
@@ -403,7 +413,7 @@ var Recorder = function(stream) {
         }
 
         recorder.onaudioprocess = function(e) {
-            console.log('onaudioprocess called');
+            // console.log('onaudioprocess called');
             var resampledData = downsampleBuffer(e.inputBuffer.getChannelData(0), inputSampleRate, outputSampleRate);
             audioData.input(resampledData);
         };

@@ -213,12 +213,11 @@ def reg_spk_init(files):
 reg_spks = reg_spk_init(reg_spks_files)
 
 
-def process_vad_audio(audio, sv=True, lang="auto"):
-    # update at 20240917
+def process_vad_audio(audio, sv=True, lang="en"):
     speaker_label = "client"
-    logger.debug(f"[process_vad_audio] process audio(length: {len(audio)})")
+    # logger.debug(f"[process_vad_audio] process audio(length: {len(audio)})")
     if not sv:
-        return asr_pipeline(audio, language=lang.strip())
+        return speaker_label, asr_pipeline(audio, language=lang.strip())
 
     hit = False
     for k, v in reg_spks.items():
@@ -339,7 +338,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 # 6. 检查推理结果
                 if len(res[0]["value"]):  # 如果result中有值
                     vad_segments = res[0]["value"]
-                    logger.debug(f"vad inference: {vad_segments}")
+                    # logger.debug(f"vad inference: {vad_segments}")
                     # 7. 提取语音活动时间段
                     for segment in vad_segments:
                         if segment[0] > -1:  # speech begin
@@ -347,7 +346,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         if segment[1] > -1:  # speech end
                             last_vad_end = segment[1]
                         if last_vad_beg > -1 and last_vad_end > -1:
-                            logger.debug(f"vad segment: {[last_vad_beg, last_vad_end]}")
+                            # logger.debug(f"vad segment: {[last_vad_beg, last_vad_end]}")
                             last_vad_beg -= offset
                             last_vad_end -= offset
                             offset += last_vad_end
@@ -383,20 +382,6 @@ async def websocket_endpoint(websocket: WebSocket):
                                 )
                                 await websocket.send_json(response.model_dump())
 
-                            # 调用process_vad_audio()函数对这些片段进一步处理 --- 20240917
-                            # speaker_label, result = process_vad_audio(audio_vad[beg:end], sv, lang)  # todo: async
-                            # # logger.debug(f"[process_vad_audio] {result[0]}")
-                            # audio_vad = audio_vad[end:]  # 已经处理过的片段移除，保留未处理的部分
-                            # last_vad_beg = last_vad_end = -1  # 重置 VAD 片段标记
-                            #
-                            # if result is not None:
-                            #     response = TranscriptionResponse(
-                            #         code=0,
-                            #         msg=f"success",
-                            #         data=speaker_label + ": " + format_str_v3(result[0]['text']),
-                            #     )
-                            #     await websocket.send_json(response.model_dump())
-
 
 
     except WebSocketDisconnect:
@@ -431,7 +416,7 @@ async def audio_predict_sentiment():
     if not os.path.exists(wav_file_path):
         raise HTTPException(status_code=404, detail="File not found")
     try:
-        logger.debug(f"Processing file {wav_file_path}")
+        # logger.debug(f"Processing file {wav_file_path}")
         feature_test_instance = calc_feature_all(wav_file_path)
         test_instance = [feature_test_instance[key] for key in selected_feature_name if key in feature_test_instance]
         # last semester score
