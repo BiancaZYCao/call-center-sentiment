@@ -1,0 +1,8 @@
+/fine_tuned_*
+/models
+/gpt_store*
+*.wav
+debug.pcm
+*.ipynb
+__pycache__
+.idea
