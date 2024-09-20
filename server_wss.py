@@ -193,7 +193,11 @@ model = AutoModel(
 
 reg_spks_files = [
     "speaker/agent_0013.wav",
-    # "speaker/client_4366.wav"
+    "speaker/agent_0001.wav",
+    "speaker/agent_0007.wav",
+    "speaker/agent_0022.wav",
+    "speaker/agent_0027.wav",
+    "speaker/agent_0028.wav",
 ]
 
 
@@ -214,7 +218,7 @@ reg_spks = reg_spk_init(reg_spks_files)
 
 
 def process_vad_audio(audio, sv=True, lang="en"):
-    speaker_label = "client"
+    speaker_label = "Client"
     # logger.debug(f"[process_vad_audio] process audio(length: {len(audio)})")
     if not sv:
         return speaker_label, asr_pipeline(audio, language=lang.strip())
@@ -225,7 +229,7 @@ def process_vad_audio(audio, sv=True, lang="en"):
         logger.debug(f"[speaker check] {k}: {res_sv}")
         if res_sv["score"] >= config.sv_thr:
             logger.debug(f"[speaker check identified] {k}: score at {res_sv['score']}")
-            speaker_label = "agent"
+            speaker_label = "Agent"
             break
 
     return speaker_label, asr_pipeline(audio, language=lang.strip())
@@ -309,6 +313,8 @@ async def websocket_endpoint(websocket: WebSocket):
         audio_vad = np.array([])  # 用于存储语音活动检测（VAD）后的音频片段
 
         cache = {}  # 接收客户端传输的二进制音频数据
+        cache_text_agent = ""
+        cache_text_client = ""
 
         # 初始化语音活动的开始和结束时间的标记
         last_vad_beg = last_vad_end = -1
@@ -370,19 +376,32 @@ async def websocket_endpoint(websocket: WebSocket):
                             logger.debug(f"[process_vad_audio] {speaker_label}: {result}")
                             audio_vad = audio_vad[end:]  # 已经处理过的片段移除，保留未处理的部分
                             last_vad_beg = last_vad_end = -1  # 重置 VAD 片段标记
+                            result_text = format_str_v3(result[0]['text'])
 
                             if result is not None:
                                 response = TranscriptionResponse(
                                     code=0,
                                     msg=f"success",
-                                    data=format_str_v3(result[0]['text']),
+                                    data=result_text,
                                     type="STT",
                                     timestamp=datetime.utcnow().isoformat(),
                                     speaker_label=speaker_label
                                 )
                                 await websocket.send_json(response.model_dump())
-
-
+                                if speaker_label == "client":
+                                    cache_text_client += " " + result_text
+                                    if len(cache_text_client.split(' ')) >= 7:
+                                        text_sentiment_result = text_sentiment_inference(cache_text_client)
+                                        cache_text_client = ""
+                                        response_sentiment = TranscriptionResponse(
+                                            code=0,
+                                            msg=f"success",
+                                            data=text_sentiment_result,
+                                            type="text_sentiment",
+                                            timestamp=datetime.utcnow().isoformat(),
+                                            speaker_label="client"
+                                        )
+                                        await websocket.send_json(response_sentiment.model_dump())
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")

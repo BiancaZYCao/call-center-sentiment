@@ -31,6 +31,8 @@ var record = null;
 var timeInte = null;
 //isRecording 变量用于追踪录音状态
 var isRecording = false;
+// mark previous STT speaker label
+var speaker_last = 'unknown';
 
 
 
@@ -148,13 +150,21 @@ function startRecording() {
             var type = resJson.type || 'unknown type';
             var timestamp = resJson.timestamp || 'no timestamp';
 
-            // Further logging to check if the values are extracted correctly
-            console.log('Type:', type);
-            console.log('Timestamp:', timestamp);
 
-            if (speaker.toLowerCase().includes('agent')) {
-               transcriptionResult.textContent += "\n" + speaker + ": " + (resJson.data || 'No speech recognized');
-            } else {
+            if (type === 'text_sentiment') {
+                sentimentResult.textContent = `Sentiment: ${textData}  at ${timestamp}`;  // 显示情感分析结果
+            }
+
+            // 显示转录结果 加上说话者身份
+            if (speaker===speaker_last) {
+                transcriptionResult.innerHTML += ' ' + textData || ' ';
+            }
+            else {
+                speaker_last = speaker;
+                transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
+            }
+
+            if (speaker.toLowerCase().includes('client') ) {
                 // 累积 pendingTextData 的词数和当前 textData 的词数
                 var totalWords = pendingTextData.split(' ').length + textData.split(' ').length;
 
@@ -170,30 +180,6 @@ function startRecording() {
 
                     console.log('Text data:', textData);
                     console.log('Total words:', totalWords);
-
-                    // 显示转录结果
-                    transcriptionResult.textContent += "\n" + speaker + ": " + (resJson.data || 'No speech recognized');
-
-                    // 发送到 /predict-sentiment/
-                    fetch('http://127.0.0.1:8000/predict-sentiment/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({text: textData})  // 将 textData 发送到后端
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.sentiment) {
-                                sentimentResult.textContent = `Sentiment: ${data.sentiment}`;  // 显示情感分析结果
-                            } else {
-                                sentimentResult.textContent = `Error: ${data.error}`;  // 显示错误信息
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            sentimentResult.textContent = `Error: ${error}`;
-                        });
 
 
                     // 发送到 /topic-model/

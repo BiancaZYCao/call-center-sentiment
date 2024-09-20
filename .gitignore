@@ -6,3 +6,5 @@ debug.pcm
 *.ipynb
 __pycache__
 .idea
+.DS_Store
+speaker/.DS_Store
