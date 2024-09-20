@@ -497,7 +497,7 @@ async def topic_model(request: Request):
 
 
 
-
+# run server
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the FastAPI app with a specified port.")
     parser.add_argument('--port', type=int, default=8000, help='Port number to run the FastAPI app on.')
