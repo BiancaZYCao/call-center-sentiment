@@ -264,14 +264,19 @@ class TopicModel(metaclass=SingletonMeta):
     def getEntityTopic(self, text, n_top_words=10):
         custom_keywords = { "credit card": ["credit card", "card", "reward", "waive", "credit limit", "payment", "annual fee", "interest rate", "cashback",
                                             "reward point", "minimum payment", "late fee", "grace period", "foreign transaction fee", "transaction fee", "penalty",
-                                            "late payment", "minimum fee", "limit", "debt", "owe"],
+                                            "late payment", "minimum fee", "limit", "debt", "owe", "uob", "ocbc", "dbs"],
                             "property loan": ["mortgage", "principal", "interest rate", "loan tenure", "down payment", "amortization", "equity", "fixed rate",
                                               "floating rate", "refinance", "stamp duty", "valuation", "loan agreement", "agreement", "legal fee", "loan", "tenure",
                                               "property loan", "hdb", "private property", "private", "home loan", "migrate", "cpf", "bank account", "bank loan",
                                               "value loss", "loss", "housing lone", "buy", "sell", "loan period", "instalment", "prepayment penalty", "foreclosure",
                                               "loan tenure", "resale flat", "bto", "loan application", "bank", "fix rate", "float rate", "transfer", "purchase",
                                               "application", "migration", "duration", "floating interest rate", "fixed interest rate", "sibor", "installment",
-                                              "float interest rate", "fix interest rate"] }
+                                              "float interest rate", "fix interest rate"],
+                            "travel insurance": ["travel insurance", "coverage", "medical expense", "trip cancellation", "trip cancel", "baggage loss", "baggage delay",
+                                                 "personal accident", "accident", "pre-existing condition", "emergency", "emergency evacuation", "travel delay", "delay",
+                                                 "loss of personal belonging", "loss", "belonging", "trip postpone", "assistance", "policy excess", "rental car excess", 
+                                                 "terrorism", "covid-19", "repatriation", "premium", "insurance premium", "geographical coverage", "claim process", 
+                                                 "regional coverage"] }
         
         prompt = "Rephrase the following text into formal and concise language: " + text        
         text = self.getOpenAIResponses(prompt)
@@ -292,13 +297,20 @@ class TopicModel(metaclass=SingletonMeta):
                 # re.escape is used to handle special characters in keywords
                 if re.search(r'\b' + re.escape(keyword) + r'\b', text, re.IGNORECASE):
                     found_category = category
+                    #print("category = ", category)
                     if keyword not in found_keywords:
                         found_keywords.append(keyword)
+                        self.topics.append(keyword)
         
         if found_category != None:
             found_keywords.insert(0, found_category)
+            self.topics.insert(0, found_category)
 
-        return found_keywords[:n_top_words]
+        #print("found_keywords = ", found_keywords[:n_top_words])
+        
+        #self.topics = found_category
+        #print("self.topics = ", self.topics)
+        return self.topics[:n_top_words]
     
 
     def getLDATopics(self, sentence, n_top_words=7):
@@ -329,10 +341,10 @@ class TopicModel(metaclass=SingletonMeta):
         top_words = [feature_names[j] for j in self.lda_model.components_[most_likely_topic].argsort()[:-n_top_words - 1:-1]]
         if len(top_words) == 0:
             return []
-        self.topics = top_words
+        self.topics = top_words[:n_top_words]
         print(f"Top words/n-grams for Topic {most_likely_topic}: {top_words}")
 
-        return top_words[:n_top_words]
+        return self.topics
 
 
     # Function to get the best topics from a list of topics.
@@ -405,14 +417,14 @@ class TopicModel(metaclass=SingletonMeta):
         best_topic = self.topic_model.get_topic(best_key)
         #print("best_topic = ", best_topic)
         best_topic = [word for word, score in best_topic]
-        self.topics = best_topic
+        self.topics = best_topic[:n_top_words]
 
-        return best_topic[:n_top_words]
+        return self.topics
 
 
-    def generateQuestionsFromTopic(self, topic, num_of_questions=5):
+    def generateQuestionsFromTopic(self, topic, category, num_of_questions=5):        
         prompt = "List " + str(num_of_questions) + " questions that can be generated from the topic \'" + topic + "\' as a Python list that can be assigned to a variable."
-        prompt += "The generated questions should be in the context of banking and finance and targeted to its representative."
+        prompt += "The generated questions should be in the context of \'" + category + "\' and targeted to its representative."
         #prompt += "Output the questions as a Python list. "
         #print("Prompt: ", prompt)
 
@@ -427,11 +439,15 @@ class TopicModel(metaclass=SingletonMeta):
     # {topic: [questions]}
     def getTopicsAndQuestions(self):
         topicsAndQuestions = {}
-        for topic in self.topics:
-            if topic not in topicsAndQuestions:
-                topicsAndQuestions[topic] = []  # Initialize an empty list if the key doesn't exist
-            topicsAndQuestions[topic] = self.generateQuestionsFromTopic(topic)
-        self.topicsAndQuestions = topicsAndQuestions
+        category = ""
+        if len(self.topics) > 0:
+            category = self.topics[0]
+            #print("topics = ", self.topics)
+            for topic in self.topics:
+                if topic not in topicsAndQuestions:
+                    topicsAndQuestions[topic] = []  # Initialize an empty list if the key doesn't exist
+                topicsAndQuestions[topic] = self.generateQuestionsFromTopic(topic, category)
+            self.topicsAndQuestions = topicsAndQuestions
 
         return topicsAndQuestions
 
