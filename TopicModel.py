@@ -288,6 +288,7 @@ class TopicModel(metaclass=SingletonMeta):
 
         # Create a list to store the found keywords
         found_keywords = []
+        self.topics = []
         found_category = None
 
         # Iterate over each category and its associated keywords
@@ -298,10 +299,14 @@ class TopicModel(metaclass=SingletonMeta):
                 if re.search(r'\b' + re.escape(keyword) + r'\b', text, re.IGNORECASE):
                     found_category = category
                     #print("category = ", category)
-                    if keyword not in found_keywords:
+                    if keyword not in self.topics:
                         found_keywords.append(keyword)
                         self.topics.append(keyword)
         
+        # Sort found_keywords and self.topics based on the number of words (n-grams) in descending order
+        found_keywords = sorted(found_keywords, key=lambda k: len(k.split()), reverse=True)
+        self.topics = sorted(self.topics, key=lambda k: len(k.split()), reverse=True)
+
         if found_category != None:
             found_keywords.insert(0, found_category)
             self.topics.insert(0, found_category)
