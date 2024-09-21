@@ -151,8 +151,17 @@ function startRecording() {
             var timestamp = resJson.timestamp || 'no timestamp';
 
 
+            // 显示情感分析结果
             if (type === 'text_sentiment') {
-                sentimentResult.textContent = `Sentiment: ${textData}  at ${timestamp}`;  // 显示情感分析结果
+                sentimentResult.textContent = `Sentiment: ${textData}  at ${timestamp.slice(0, 19)}`;
+            }
+
+            // 显示情感分析结果 音频情感分析处理 - new model- 20240915
+            if (type === 'audio_sentiment') {
+                var audioData = JSON.parse(textData);  // Parse the JSON string in 'data'
+                var finalScore = Number(audioData.final_score);  // Cast final_score to a number
+                updateGauge(finalScore, audioData.final_sentiment_3);  // Update gauge
+                responseResult.textContent = `Final Sentiment (3 Classes): ${audioData.final_sentiment_3}\n`;
             }
 
             // 显示转录结果 加上说话者身份
@@ -164,7 +173,13 @@ function startRecording() {
                     transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
                 }
             }
+        } catch (err) {
+            console.error('Failed to parse websocket message:', err);
+            transcriptionResult.textContent += "\n" + evt.data;  // 如果解析失败，直接显示原始数据
+        }
 
+        try {
+            // TODO: move model inferencing function to backend, no API call here
             if (speaker.toLowerCase().includes('client') && (type === 'STT')) {
                 // 累积 pendingTextData 的词数和当前 textData 的词数
                 var totalWords = pendingTextData.split(' ').length + textData.split(' ').length;
@@ -228,25 +243,6 @@ function startRecording() {
                 }
             }
 
-            // // 音频情感分析处理 - new model- 20240915
-            fetch('http://127.0.0.1:8000/audio-predict-sentiment/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-                .then(response => response.json())
-                .then(data => {
-                    updateGauge(data.final_score, data.final_sentiment_3);
-                    responseResult.textContent = `
-                        Final Sentiment (3 Classes): ${data.final_sentiment_3}\n
-                        `;
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    responseResult.textContent = `Error: ${error}`;
-                });
-
 
             //update chart
             // Fetch data from the server and update chart
@@ -271,9 +267,8 @@ function startRecording() {
                     console.error('Error chart update:', error);  // Log any errors that occur during the fetch
                 });
 
-        } catch (e) {
-            console.error('Failed to parse response data', e);
-            transcriptionResult.textContent += "\n" + evt.data;  // 如果解析失败，直接显示原始数据
+        } catch (err) {
+            console.error('Error:', err);
         }
     };
 
