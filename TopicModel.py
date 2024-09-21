@@ -4,6 +4,7 @@ import ast
 import spacy
 import joblib
 import numpy as np
+#import inflect
 import TextPreprocessing as tp
 #import SingletonMeta
 from openai import OpenAI
@@ -31,6 +32,9 @@ from bertopic import BERTopic
 # Download NLTK stopwords
 nltk.download('stopwords')
 
+# Initialize the inflect engine
+#p = inflect.engine()
+
 # Hyperparameters for TopicModel
 similarityThreshold = 0.75
 
@@ -39,6 +43,10 @@ similarityThreshold = 0.75
 
 # Vector store path
 vector_store_path = "./gpt_store3"
+
+# Set the model to use:
+# "entity" or "lda" or "bertopic"
+model_to_use = "entity"
 
 #nlp = spacy.load('en_core_web_lg')
 #stop_words = set(stopwords.words('english'))
@@ -60,7 +68,7 @@ class SingletonMeta(type):
 class TopicModel(metaclass=SingletonMeta):
     stopwords = []
 
-    def __init__(self, model="lda"):
+    def __init__(self, model=model_to_use):
         self.nlp = spacy.load('en_core_web_lg')
         self.nlp = self.add_stopwords(self.nlp)
         self.stop_words = self.nlp.Defaults.stop_words
@@ -76,7 +84,8 @@ class TopicModel(metaclass=SingletonMeta):
 
     def initOpenAI(self):
         #os.environ['OPENAI_API_KEY'] = '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'
-        os.environ['OPENAI_API_KEY'] = 'sk-proj-NNn2ogDOcAahK91dPqzAT3BlbkFJoUPvh8YGkkCkzlOtx4sL'
+        #os.environ['OPENAI_API_KEY'] = 'sk-proj-NNn2ogDOcAahK91dPqzAT3BlbkFJoUPvh8YGkkCkzlOtx4sL'
+        os.environ['OPENAI_API_KEY'] = "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"
         self.model_id = "ft:gpt-4o-mini-2024-07-18:personal::A0l6mkLn"
 
         self.client = OpenAI(
@@ -218,16 +227,18 @@ class TopicModel(metaclass=SingletonMeta):
         return vectorizer
     
 
-    def getTopics(self, sentence, n_top_words=7, model="lda"):
+    def getTopics(self, sentence, n_top_words=7, model=model_to_use):
         if model == "bertopic":
             return self.getBERTopics(sentence, n_top_words=n_top_words)
         elif model == "lda":
             return self.getLDATopics(sentence, n_top_words=n_top_words)
+        elif model == "entity":
+            return self.getEntityTopic(sentence, n_top_words=n_top_words)
         
     def load_lda(self):
         # Path to saved LDA model and vectorizer
-        lda_model_path = './models/lda/lda_model_4.pkl'
-        vectorizer_path = './models/lda/vectorizer_4.pkl'
+        lda_model_path = './models/lda/lda_model_5.pkl'
+        vectorizer_path = './models/lda/vectorizer_5.pkl'
 
         # Set paths for loading the model and vectorizer
         self.model_path = lda_model_path
@@ -249,6 +260,63 @@ class TopicModel(metaclass=SingletonMeta):
         self.topic_model = BERTopic.load(model_path)
         print("BERTopic model loaded successfully.")
 
+
+    def getEntityTopic(self, text, n_top_words=10):
+        custom_keywords = { "credit card": ["credit card", "card", "reward", "waive", "credit limit", "payment", "annual fee", "interest rate", "cashback",
+                                            "reward point", "minimum payment", "late fee", "grace period", "foreign transaction fee", "transaction fee", "penalty",
+                                            "late payment", "minimum fee", "limit", "debt", "owe", "uob", "ocbc", "dbs"],
+                            "property loan": ["mortgage", "principal", "interest rate", "loan tenure", "down payment", "amortization", "equity", "fixed rate",
+                                              "floating rate", "refinance", "stamp duty", "valuation", "loan agreement", "agreement", "legal fee", "loan", "tenure",
+                                              "property loan", "hdb", "private property", "private", "home loan", "migrate", "cpf", "bank account", "bank loan",
+                                              "value loss", "loss", "housing lone", "buy", "sell", "loan period", "instalment", "prepayment penalty", "foreclosure",
+                                              "loan tenure", "resale flat", "bto", "loan application", "bank", "fix rate", "float rate", "transfer", "purchase",
+                                              "application", "migration", "duration", "floating interest rate", "fixed interest rate", "sibor", "installment",
+                                              "float interest rate", "fix interest rate"],
+                            "travel insurance": ["travel insurance", "coverage", "medical expense", "trip cancellation", "trip cancel", "baggage loss", "baggage delay",
+                                                 "personal accident", "accident", "pre-existing condition", "emergency", "emergency evacuation", "travel delay", "delay",
+                                                 "loss of personal belonging", "loss", "belonging", "trip postpone", "assistance", "policy excess", "rental car excess", 
+                                                 "terrorism", "covid-19", "repatriation", "premium", "insurance premium", "geographical coverage", "claim process", 
+                                                 "regional coverage", "luggage loss", "luggage delay", "luggage", "baggage", "sick", "medical", "claim", "policy number"] }
+        
+        prompt = "Rephrase the following text into formal and concise language: " + text        
+        text = self.getOpenAIResponses(prompt)
+
+        # Preprocess the text
+        text = self.preprocess_text_2(text)
+        #text = self.text_preprocessing(text, self.nlp)
+        print("Preprocessed text = ", text)
+
+        # Create a list to store the found keywords
+        found_keywords = []
+        self.topics = []
+        found_category = None
+
+        # Iterate over each category and its associated keywords
+        for category, keywords in custom_keywords.items():
+            for keyword in keywords:
+                # Use regex to find whole words or phrases in the preprocessed text
+                # re.escape is used to handle special characters in keywords
+                if re.search(r'\b' + re.escape(keyword) + r'\b', text, re.IGNORECASE):
+                    found_category = category
+                    #print("category = ", category)
+                    if keyword not in self.topics:
+                        found_keywords.append(keyword)
+                        self.topics.append(keyword)
+        
+        # Sort found_keywords and self.topics based on the number of words (n-grams) in descending order
+        found_keywords = sorted(found_keywords, key=lambda k: len(k.split()), reverse=True)
+        self.topics = sorted(self.topics, key=lambda k: len(k.split()), reverse=True)
+
+        if found_category != None:
+            found_keywords.insert(0, found_category)
+            self.topics.insert(0, found_category)
+
+        #print("found_keywords = ", found_keywords[:n_top_words])
+        
+        #self.topics = found_category
+        #print("self.topics = ", self.topics)
+        return self.topics[:n_top_words]
+    
 
     def getLDATopics(self, sentence, n_top_words=7):
         # Step 1: Preprocess the entire document as one unit
@@ -278,10 +346,10 @@ class TopicModel(metaclass=SingletonMeta):
         top_words = [feature_names[j] for j in self.lda_model.components_[most_likely_topic].argsort()[:-n_top_words - 1:-1]]
         if len(top_words) == 0:
             return []
-        self.topics = top_words
+        self.topics = top_words[:n_top_words]
         print(f"Top words/n-grams for Topic {most_likely_topic}: {top_words}")
 
-        return top_words[:n_top_words]
+        return self.topics
 
 
     # Function to get the best topics from a list of topics.
@@ -354,14 +422,14 @@ class TopicModel(metaclass=SingletonMeta):
         best_topic = self.topic_model.get_topic(best_key)
         #print("best_topic = ", best_topic)
         best_topic = [word for word, score in best_topic]
-        self.topics = best_topic
+        self.topics = best_topic[:n_top_words]
 
-        return best_topic[:n_top_words]
+        return self.topics
 
 
-    def generateQuestionsFromTopic(self, topic, num_of_questions=5):
+    def generateQuestionsFromTopic(self, topic, category, num_of_questions=5):        
         prompt = "List " + str(num_of_questions) + " questions that can be generated from the topic \'" + topic + "\' as a Python list that can be assigned to a variable."
-        prompt += "The generated questions should be in the context of banking and finance and targeted to its representative."
+        prompt += "The generated questions should be in the context of \'" + category + "\' and targeted to its representative."
         #prompt += "Output the questions as a Python list. "
         #print("Prompt: ", prompt)
 
@@ -376,11 +444,15 @@ class TopicModel(metaclass=SingletonMeta):
     # {topic: [questions]}
     def getTopicsAndQuestions(self):
         topicsAndQuestions = {}
-        for topic in self.topics:
-            if topic not in topicsAndQuestions:
-                topicsAndQuestions[topic] = []  # Initialize an empty list if the key doesn't exist
-            topicsAndQuestions[topic] = self.generateQuestionsFromTopic(topic)
-        self.topicsAndQuestions = topicsAndQuestions
+        category = ""
+        if len(self.topics) > 0:
+            category = self.topics[0]
+            #print("topics = ", self.topics)
+            for topic in self.topics:
+                if topic not in topicsAndQuestions:
+                    topicsAndQuestions[topic] = []  # Initialize an empty list if the key doesn't exist
+                topicsAndQuestions[topic] = self.generateQuestionsFromTopic(topic, category)
+            self.topicsAndQuestions = topicsAndQuestions
 
         return topicsAndQuestions
 
@@ -461,7 +533,7 @@ class TopicModel(metaclass=SingletonMeta):
         
         return nlp
 
-    def preprocess_text(self, text):
+    def preprocess_text_2(self, text):
         """Preprocess the input text by removing stopwords, lemmatization, and cleaning."""
         # Lowercase the text
         text = text.lower()
@@ -525,3 +597,24 @@ class TopicModel(metaclass=SingletonMeta):
             texts = [texts]  # Treat the input as a single document
         
         return [self.preprocess_text(text) for text in texts]
+
+
+    # Function for text preprocessing (including plural to singular conversion)
+    """
+    def preprocess_text_for_entity(self, text):
+        # Convert to lowercase
+        text = text.lower()
+        # Remove special characters and numbers, keeping only alphanumeric and spaces
+        text = re.sub(r'[^a-z\s]', '', text)
+        
+        # Convert plural words to singular
+        words = text.split()
+        singular_words = [p.singular_noun(word) if p.singular_noun(word) else word for word in words]
+        
+        # Join the singular words back into a string
+        text = ' '.join(singular_words)
+        
+        # Remove extra spaces
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+    """
