@@ -150,6 +150,7 @@ function startRecording() {
             var type = resJson.type || 'unknown type';
             var timestamp = resJson.timestamp || 'no timestamp';
 
+
             // 显示情感分析结果
             if (type === 'text_sentiment') {
                 sentimentResult.textContent = `Sentiment: ${textData}  at ${timestamp.slice(0, 19)}`;
@@ -241,25 +242,6 @@ function startRecording() {
 
                 }
             }
-
-            // // 音频情感分析处理 - new model- 20240915
-            // fetch('http://127.0.0.1:8000/audio-predict-sentiment/', {
-            //     method: 'POST',
-            //     headers: {
-            //         'Content-Type': 'application/json'
-            //     }
-            // })
-            //     .then(response => response.json())
-            //     .then(data => {
-            //         updateGauge(data.final_score, data.final_sentiment_3);
-            //         responseResult.textContent = `
-            //             Final Sentiment (3 Classes): ${data.final_sentiment_3}\n
-            //             `;
-            //     })
-            //     .catch(error => {
-            //         console.error('Error:', error);
-            //         responseResult.textContent = `Error: ${error}`;
-            //     });
 
 
             //update chart

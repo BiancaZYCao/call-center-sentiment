@@ -510,7 +510,7 @@ def retrieve_probability(test_instance):
 #
 #     sentiment_class_3_new= CNN_Model_Predication_New(test_instance)
 #
-#     score=calculate_combine_score(test_instance,final_score,sentiment_class_3_new)
+#     score=calculate_combine_score(test_instance,final_score,final_sentiment_3_new)
 
 
     # test this semester pkl
