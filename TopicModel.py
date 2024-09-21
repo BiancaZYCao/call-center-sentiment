@@ -276,7 +276,7 @@ class TopicModel(metaclass=SingletonMeta):
                                                  "personal accident", "accident", "pre-existing condition", "emergency", "emergency evacuation", "travel delay", "delay",
                                                  "loss of personal belonging", "loss", "belonging", "trip postpone", "assistance", "policy excess", "rental car excess", 
                                                  "terrorism", "covid-19", "repatriation", "premium", "insurance premium", "geographical coverage", "claim process", 
-                                                 "regional coverage"] }
+                                                 "regional coverage", "luggage loss", "luggage delay", "luggage", "baggage", "sick", "medical", "claim"] }
         
         prompt = "Rephrase the following text into formal and concise language: " + text        
         text = self.getOpenAIResponses(prompt)
