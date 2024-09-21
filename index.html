@@ -776,8 +776,8 @@
 
 
                                     <hr/>
-                                    Transcription result will be displayed below:
-                                    <p id="transcriptionResult"></p>
+<!--                                    Transcription result will be displayed below:-->
+<!--                                    <p id="transcriptionResult"></p>-->
                                    <!-- model predicate display&ndash;&gt;-->
                                 </div>
                             </div>
@@ -788,123 +788,37 @@
                             <!-- Replay Hint -->
                             <div class="card shadow mb-4">
                                 <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold text-primary">Reply Hint</h6>
+                                    <h6 class="m-0 font-weight-bold text-primary">Transcription result</h6>
                                 </div>
                                 <div class="card-body">
-                                    <div class="text-center">
-                                        <img class="img-fluid px-3 px-sm-4 mt-3 mb-4" style="width: 25rem;"
-                                             src="static/img/undraw_posting_photo.svg" alt="...">
+                                    <div>
+                                       <hr/>
+                                    <p id="transcriptionResult"></p>
                                     </div>
-                                    <!--                                    reply hint-->
-                                    <div class="reply-hints">
-<!--                                        <h2>Reply hint (sentences/keywords for selection):</h2>-->
-                                        <div id="hint-options-container">
-                                            <!-- Dynamic hint options will be inserted here -->
-                                        </div>
-
-                                        <div class="selected-replies">
-                                            <h6>Selected Replies:</h6>
-                                            <ul id="selected-list">
-                                                <!-- Selected replies will appear here -->
-                                            </ul>
-                                        </div>
-                                    </div>
-
-                                    <script>
-                                        // Example dynamic data that might come from a backend API
-                                        const hintData = [
-                                            {id: 'refund', text: 'Do you want to make a refund?'},
-                                            {id: 'cancelOrder', text: 'Would you like to help cancel the order?'},
-                                            {id: 'replacement', text: 'Can I arrange a replacement for you?'},
-                                            {
-                                                id: 'shippingUpdate',
-                                                text: 'Would you like an update on your shipping status?'
-                                            },
-                                            {id: 'technicalSupport', text: 'Can I help you with any technical issues?'},
-                                            {id: 'billingIssue', text: 'Are you calling about a billing issue?'},
-                                            {
-                                                id: 'accountDetails',
-                                                text: 'Do you need assistance with your account details?'
-                                            },
-                                            {
-                                                id: 'loyaltyProgram',
-                                                text: 'Would you like to know more about our loyalty program?'
-                                            },
-                                            {
-                                                id: 'productInfo',
-                                                text: 'Can I provide more information about our products?'
-                                            }
-                                        ];
-
-                                        // Function to dynamically render hint options
-                                        function renderHintOptions(hints) {
-                                            const container = document.getElementById('hint-options-container');
-                                            container.innerHTML = ''; // Clear any existing content
-
-                                            hints.forEach(hint => {
-                                                const div = document.createElement('div');
-                                                div.className = 'hint-option';
-                                                div.innerHTML = `
-                <input type="checkbox" id="${hint.id}" value="${hint.text}" checked>
-                <label for="${hint.id}">${hint.text}</label>
-            `;
-                                                container.appendChild(div);
-                                            });
-
-                                            // After rendering, attach event listeners to the checkboxes
-                                            attachCheckboxListeners();
-                                        }
-
-                                        // Function to update the selected replies list
-                                        function updateSelectedReplies() {
-                                            const checkboxes = document.querySelectorAll('.hint-option input[type="checkbox"]');
-                                            const selectedList = document.getElementById('selected-list');
-                                            selectedList.innerHTML = ''; // Clear the list
-
-                                            checkboxes.forEach(checkbox => {
-                                                if (checkbox.checked) {
-                                                    const li = document.createElement('li');
-                                                    li.textContent = checkbox.value;
-                                                    selectedList.appendChild(li);
-                                                }
-                                            });
-                                        }
-
-                                        // Function to attach event listeners to the checkboxes
-                                        function attachCheckboxListeners() {
-                                            const checkboxes = document.querySelectorAll('.hint-option input[type="checkbox"]');
-                                            checkboxes.forEach(checkbox => {
-                                                checkbox.addEventListener('change', updateSelectedReplies);
-                                            });
-                                        }
-
-                                        // Render the hint options on page load (or after fetching from the backend)
-                                        renderHintOptions(hintData);
-                                    </script>
 
 <!--                                    end of reply hint-->
 <!--                                    <p>Add some quality, svg illustrations to your project courtesy of <a-->
 <!--                                            target="_blank" rel="nofollow" href="https://undraw.co/">unDraw</a>, a-->
 <!--                                        constantly updated collection of beautiful svg images that you can use-->
 <!--                                        completely free and without attribution!</p>-->
-                                    <a target="_blank" rel="nofollow" href="https://undraw.co/">Browse Illustrations on
-                                        unDraw &rarr;</a>
+<!--                                    <a target="_blank" rel="nofollow" href="https://undraw.co/">Browse Illustrations on-->
+<!--                                        unDraw &rarr;</a>-->
                                 </div>
                             </div>
 
-                            <!-- Approach -->
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold text-primary">Development Approach</h6>
-                                </div>
-                                <div class="card-body">
-                                    <p>SB Admin 2 makes extensive use of Bootstrap 4 utility classes in order to reduce
-                                        CSS bloat and poor page performance. Custom CSS classes are used to create
-                                        custom components and custom utility classes.</p>
-                                    <p class="mb-0">Before working with this theme, you should become familiar with the
-                                        Bootstrap framework, especially the utility classes.</p>
-                                </div>
-                            </div>
+<!--                            &lt;!&ndash; Approach &ndash;&gt;-->
+<!--                            <div class="card shadow mb-4">-->
+<!--                                <div class="card-header py-3">-->
+<!--                                    <h6 class="m-0 font-weight-bold text-primary">Development Approach</h6>-->
+<!--                                </div>-->
+<!--                                <div class="card-body">-->
+<!--                                    <p>SB Admin 2 makes extensive use of Bootstrap 4 utility classes in order to reduce-->
+<!--                                        CSS bloat and poor page performance. Custom CSS classes are used to create-->
+<!--                                        custom components and custom utility classes.</p>-->
+<!--                                    <p class="mb-0">Before working with this theme, you should become familiar with the-->
+<!--                                        Bootstrap framework, especially the utility classes.</p>-->
+<!--                                </div>-->
+<!--                            </div>-->
 
                         </div>
                     </div>

@@ -403,14 +403,8 @@ def retrieve_probability(test_instance):
     return probability_dict
 
 
-
-
-
-
-
-
-"""###  MAIN
-
+"""
+###  MAIN
 ### Single wav file predication
 ### need uncomment code below,需要把上面循环的代码注释掉
 """
@@ -422,7 +416,7 @@ def retrieve_probability(test_instance):
 
 # Main execution flow
 # if __name__ == "__main__":
-#     wav_file_path = "./app_0016_0001_phnd_cc-hot_190.91_195.68.wav"
+#     wav_file_path = "./test_files/app_0016_0001_phnd_cc-hot_190.91_195.68.wav"
 #     feature_test_instance = calc_feature_all(wav_file_path)
 #     test_instance = [feature_test_instance[key] for key in selected_feature_name if key in feature_test_instance]
 #
@@ -431,8 +425,6 @@ def retrieve_probability(test_instance):
 #     final_sentiment_3_new= CNN_Model_Predication_New(test_instance)
 #
 #     score=calculate_combine_score(test_instance,final_score,final_sentiment_3_new)
-
-
 
 
     # test this semester pkl

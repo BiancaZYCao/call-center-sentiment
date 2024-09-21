@@ -1,4 +1,4 @@
-##  EmoSenseLite - real-time streaming
+##  EchoMindLite: Intelligent Voice and Sentiment Analysis for Enhanced Call Center Insights in real-time streaming 
 
 It has inherited some enhanced features for [sensevoice](funaudiollm.github.io/):
 - **VAD detection**
@@ -10,15 +10,15 @@ It has inherited some enhanced features for [sensevoice](funaudiollm.github.io/)
 First, clone this repository to your local machine:
 
 ```bash
-git clone https://github.com/0x5446/api4sensevoice.git
-cd api4sensevoice
+git clone https://github.com/BiancaZYCao/call-center-sentiment-sense.git
+cd call-center-sentiment-sense
 ```
 
 Then, install the required dependencies using the following command: 
 
 ```bash
-conda create -n emosenselite python=3.10
-conda activate emosenselite
+conda create -n echomindlite python=3.10
+conda activate echomindlite
 
 conda install -c conda-forge ffmpeg
 
@@ -43,7 +43,7 @@ python server_wss.py
 ## Roadmap
 
 - [x]  VAD and STT with SenseVoice - real time with speaker verification
-- [x]  Accent Recognition Singporean English V.S. Native Speaker
+- [x]  Accent Recognition Singaporean English V.S. Native Speaker
 - [x]  Text Sentiment
 - [ ]  Topic Modelling 
 - [ ]  Reply Hint, RAG
