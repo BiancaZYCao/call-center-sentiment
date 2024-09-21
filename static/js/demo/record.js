@@ -156,15 +156,16 @@ function startRecording() {
             }
 
             // 显示转录结果 加上说话者身份
-            if (speaker===speaker_last) {
-                transcriptionResult.innerHTML += ' ' + textData || ' ';
-            }
-            else {
-                speaker_last = speaker;
-                transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
+            if (type === 'STT') {
+                if (speaker === speaker_last) {
+                    transcriptionResult.innerHTML += ' ' + textData || ' ';
+                } else {
+                    speaker_last = speaker;
+                    transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
+                }
             }
 
-            if (speaker.toLowerCase().includes('client') ) {
+            if (speaker.toLowerCase().includes('client') && (type === 'STT')) {
                 // 累积 pendingTextData 的词数和当前 textData 的词数
                 var totalWords = pendingTextData.split(' ').length + textData.split(' ').length;
 
@@ -174,6 +175,7 @@ function startRecording() {
                     console.log('Text data:', textData);
                     console.log('Total words:', totalWords);
                 } else {
+                    speaker_last = 'unknown'; // reset
                     // 如果总词数大于等于 7 个词，或者已经合并了足够的 textData，进行发送
                     textData = pendingTextData ? pendingTextData + ' ' + textData : textData;
                     pendingTextData = '';  // 清空 pendingTextData

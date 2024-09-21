@@ -41,7 +41,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 class Config(BaseSettings):
-    sv_thr: float = Field(0.29, description="Speaker verification threshold")
+    sv_thr: float = Field(0.4, description="Speaker verification threshold")
     chunk_size_ms: int = Field(100, description="Chunk size in milliseconds")
     sample_rate: int = Field(16000, description="Sample rate in Hz")
     bit_depth: int = Field(16, description="Bit depth")
@@ -388,7 +388,7 @@ async def websocket_endpoint(websocket: WebSocket):
                                     speaker_label=speaker_label
                                 )
                                 await websocket.send_json(response.model_dump())
-                                if speaker_label == "client":
+                                if speaker_label == "Client":
                                     cache_text_client += " " + result_text
                                     if len(cache_text_client.split(' ')) >= 7:
                                         text_sentiment_result = text_sentiment_inference(cache_text_client)
@@ -399,8 +399,9 @@ async def websocket_endpoint(websocket: WebSocket):
                                             data=text_sentiment_result,
                                             type="text_sentiment",
                                             timestamp=datetime.utcnow().isoformat(),
-                                            speaker_label="client"
+                                            speaker_label="Client"
                                         )
+                                        logger.debug("sending sentiment result! {}".format(text_sentiment_result))
                                         await websocket.send_json(response_sentiment.model_dump())
 
     except WebSocketDisconnect:
