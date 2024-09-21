@@ -1,5 +1,5 @@
 from datetime import datetime
-from datetime import timedelta
+import json
 import logging
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -24,7 +24,7 @@ from text_sentiment import text_sentiment_inference
 
 from model_predicate import determine_sentiment, calc_feature_all, selected_feature_name, \
     Boosting_Model_Predication, calculate_final_score, retrieve_probability, CNN_Model_Predication, \
-    CNN_Model_Predication_New,  calculate_combine_score, determine_sentiment_category
+    CNN_Model_Predication_New,  calculate_combine_score, determine_sentiment_category, audio_model_inference
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from TopicModel import TopicModel
@@ -32,14 +32,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # import os
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-# import os
-# os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-#
 # from sklearn import set_config
 # set_config(assume_finite=True)
 
 
+
+# region ASR: STT & speaker verification
 class Config(BaseSettings):
     sv_thr: float = Field(0.4, description="Speaker verification threshold")
     chunk_size_ms: int = Field(100, description="Chunk size in milliseconds")
@@ -226,7 +225,7 @@ def process_vad_audio(audio, sv=True, lang="en"):
     hit = False
     for k, v in reg_spks.items():
         res_sv = sv_pipeline([audio, v["data"]], thr=config.sv_thr)
-        logger.debug(f"[speaker check] {k}: {res_sv}")
+        # logger.debug(f"[speaker check] {k}: {res_sv}")
         if res_sv["score"] >= config.sv_thr:
             logger.debug(f"[speaker check identified] {k}: score at {res_sv['score']}")
             speaker_label = "Agent"
@@ -234,6 +233,7 @@ def process_vad_audio(audio, sv=True, lang="en"):
 
     return speaker_label, asr_pipeline(audio, language=lang.strip())
 
+# endregion
 
 app = FastAPI()
 
@@ -292,11 +292,12 @@ class TranscriptionResponse(BaseModel):
 
 # 全局变量
 timeline_data = []  # Store timestamp
+final_score_list = []  # 存储所有的最终得分
+cache = {}  # 接收客户端传输的二进制音频数据
 # 实时音频流的语音识别和说话人验证
 @app.websocket("/ws/transcribe")
 async def websocket_endpoint(websocket: WebSocket):
     try:
-
         # 1. websocket 连接处理
         query_params = parse_qs(websocket.scope['query_string'].decode())
         sv = query_params.get('sv', ['false'])[0].lower() in ['true', '1', 't', 'y', 'yes']
@@ -313,7 +314,6 @@ async def websocket_endpoint(websocket: WebSocket):
         audio_vad = np.array([])  # 用于存储语音活动检测（VAD）后的音频片段
 
         cache = {}  # 接收客户端传输的二进制音频数据
-        cache_text_agent = ""
         cache_text_client = ""
 
         # 初始化语音活动的开始和结束时间的标记
@@ -337,14 +337,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 # 将刚提取到的chunk 添加到audio_vad数组中
                 audio_vad = np.append(audio_vad, chunk)
 
-                # with open("debug.pcm", "ab") as f:
-                #     f.write(np.int16(chunk * 32767).tobytes())   # 转化为16位证书， NumPy 数组转换为字节序列 #[-32767, 32767]
                 # 5. VAD 推断音频块
                 res = model.generate(input=chunk, cache=cache, is_final=False, chunk_size=config.chunk_size_ms)
                 # 6. 检查推理结果
                 if len(res[0]["value"]):  # 如果result中有值
                     vad_segments = res[0]["value"]
-                    # logger.debug(f"vad inference: {vad_segments}")
                     # 7. 提取语音活动时间段
                     for segment in vad_segments:
                         if segment[0] > -1:  # speech begin
@@ -360,25 +357,15 @@ async def websocket_endpoint(websocket: WebSocket):
                             end = int(last_vad_end * config.sample_rate / 1000)  # 语音活动的结束位置
 
                             # 获取经过 VAD 处理的音频块 - 20240904
-                            wav_file_path = "./temp_chunk.wav"
                             vad_audio_chunk = audio_vad[beg:end]
-                            sf.write(wav_file_path, vad_audio_chunk, 16000, format='WAV',
-                                     subtype='PCM_16')  # 使用 soundfile 保存音频
-
-                            # 保存每个VAD的开始时间，结束时间 - 20240912
-                            timeline_data.append({
-                                "start_time_relative": last_vad_beg/1000,
-                                "end_time_relative": last_vad_end/1000
-                            })
 
                             # 调用process_vad_audio()函数对这些片段进一步处理 --- old
-                            speaker_label, result = process_vad_audio(audio_vad[beg:end], sv, lang)  # todo: async
-                            logger.debug(f"[process_vad_audio] {speaker_label}: {result}")
-                            audio_vad = audio_vad[end:]  # 已经处理过的片段移除，保留未处理的部分
-                            last_vad_beg = last_vad_end = -1  # 重置 VAD 片段标记
-                            result_text = format_str_v3(result[0]['text'])
+                            speaker_label, transcript_result = process_vad_audio(audio_vad[beg:end], sv, lang)  # todo: async
+                            logger.debug(f"[process_vad_audio] {speaker_label}: {transcript_result}")
+                            result_text = format_str_v3(transcript_result[0]['text'])
 
-                            if result is not None:
+                            if transcript_result is not None:
+                                # speech to text transcript results
                                 response = TranscriptionResponse(
                                     code=0,
                                     msg=f"success",
@@ -388,7 +375,34 @@ async def websocket_endpoint(websocket: WebSocket):
                                     speaker_label=speaker_label
                                 )
                                 await websocket.send_json(response.model_dump())
+
                                 if speaker_label == "Client":
+                                    # audio sentiment
+                                    final_audio_score, final_audio_class = audio_model_inference(vad_audio_chunk)
+                                    logger.error(f"final_audio_score: {final_audio_score}")
+                                    if final_audio_score and final_audio_class:
+                                        # 保存每个VAD的开始时间，结束时间 - 20240912
+                                        timeline_data.append({
+                                            "start_time_relative": last_vad_beg / 1000,
+                                            "end_time_relative": last_vad_end / 1000
+                                        })
+                                        final_score_list.append(final_audio_score)
+                                        response_audio_data = {
+                                            "final_score": final_audio_score,
+                                            "final_sentiment_3": final_audio_class
+                                        }
+                                        response_audio__data_str = json.dumps(response_audio_data)
+                                        response_audio = TranscriptionResponse(
+                                            code=0,
+                                            msg=f"success",
+                                            data=response_audio__data_str,
+                                            type="audio_sentiment",
+                                            timestamp=datetime.utcnow().isoformat(),
+                                            speaker_label=speaker_label
+                                        )
+                                        await websocket.send_json(response_audio.model_dump())
+
+                                    # text sentiment
                                     cache_text_client += " " + result_text
                                     if len(cache_text_client.split(' ')) >= 7:
                                         text_sentiment_result = text_sentiment_inference(cache_text_client)
@@ -401,8 +415,9 @@ async def websocket_endpoint(websocket: WebSocket):
                                             timestamp=datetime.utcnow().isoformat(),
                                             speaker_label="Client"
                                         )
-                                        logger.debug("sending sentiment result! {}".format(text_sentiment_result))
                                         await websocket.send_json(response_sentiment.model_dump())
+                            audio_vad = audio_vad[end:]  # 已经处理过的片段移除，保留未处理的部分
+                            last_vad_beg = last_vad_end = -1  # 重置 VAD 片段标记
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
@@ -427,44 +442,6 @@ async def predict_sentiment(request: Request):
         return {"error": "No text provided"}
 
 
-final_score_list = []  # 存储所有的最终得分
-# update at 20240915
-@app.post("/audio-predict-sentiment/")
-async def audio_predict_sentiment():
-    wav_file_path = "./temp_chunk.wav"
-
-    if not os.path.exists(wav_file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    try:
-        # logger.debug(f"Processing file {wav_file_path}")
-        feature_test_instance = calc_feature_all(wav_file_path)
-        test_instance = [feature_test_instance[key] for key in selected_feature_name if key in feature_test_instance]
-        # last semester score
-        final_score = calculate_final_score(test_instance)
-        # this semester score - [-1,0,1]
-        final_sentiment_3_new = CNN_Model_Predication_New(test_instance)
-
-        # if final_sentiment_3_new is list，then pick the first one
-        if isinstance(final_sentiment_3_new, list):
-            final_sentiment_3_new = final_sentiment_3_new[0]
-
-        combine_score = calculate_combine_score(test_instance, final_score, final_sentiment_3_new)
-
-        sentiment_category= determine_sentiment_category(final_sentiment_3_new)
-
-        # update final_score_list
-        final_score_list.append(float(combine_score))
-
-        response = {
-            "final_score": combine_score,
-            # "final_emotion_8": final_emotion_8[0],
-            "final_sentiment_3": sentiment_category,
-            # "probability": probability
-        }
-        return response
-    except Exception as e:
-        logger.error(f"Error processing audio: {e}")
-        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 # 更新折线图
 @app.post("/update-chart/")

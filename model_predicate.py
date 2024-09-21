@@ -20,7 +20,7 @@ from feature_extraction_utils import *
 
 # from IPython.display import Audio
 
-# from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model
 
 """## Load data - To Define your selected features
 ## change to be aligned with your model input!
@@ -72,6 +72,12 @@ len(selected_feature_name)
 
 print(selected_feature_name)
 
+"""### TODO Load Model """
+NCS_SEN_CNN_MODEL = load_model("./models/NCS_SEN_CNN_T2_S1S3S2Aa_0916-B-7805.h5", compile=False)
+EMO_CNN_MODEL = load_model("./models/T2-0329-aug-VAL-R10-6042.h5", compile=False)
+NCA_LAN_MLP_MODEL = load_model("./models/NCS_LAN_MLP_V2_0916-A2-9722.h5", compile=False)
+
+# region load Data
 """### Load Data - test input from wav file"""
 
 
@@ -101,7 +107,6 @@ def calc_feature_all(filename):
     # 加载音频文件，使用调整后的时长
     X, sample_rate = librosa.load(filename, res_type='kaiser_fast', duration=duration_to_use, sr=sample_rate_set,
                                   offset=0)
-
 
     # 检查音频是否为空
     if len(X) == 0:
@@ -157,6 +162,123 @@ def calc_feature_all(filename):
     return feature_combined
 
 
+def calc_feature_all_from_binary(x: np.ndarray):
+    sample_rate = 16000
+
+    mfccs_20 = librosa.feature.mfcc(y=x, sr=sample_rate, n_mfcc=20)
+    feature_mfccs_20_stats = get_stats_from_feature(mfccs_20)
+    stft = np.abs(librosa.stft(x))
+    feature_mel_32_stats = get_stats_from_feature(librosa.feature.melspectrogram(y=x, sr=sample_rate,
+                                                                                 n_fft=2048, hop_length=512,
+                                                                                 n_mels=32, fmax=8000))
+    feature_zcr_stats = get_stats_from_feature(librosa.feature.zero_crossing_rate(y=x))
+    feature_rms_stats = get_stats_from_feature(librosa.feature.rms(y=x))
+    # 将所有特征连接成一个数组
+    features = np.concatenate((feature_mfccs_20_stats,
+                               feature_mel_32_stats,
+                               feature_zcr_stats,
+                               feature_rms_stats
+                               ), axis=0)
+    # 定义特征列名
+    # updated at 20240916
+    prefixes = {'mfcc': 20, 'mel32': 32, 'zcr': 1, 'rms': 1}
+    column_names = []
+    for prefix, num_features in prefixes.items():
+        for prefix_stats in ['mean', 'median', 'std', 'p10', 'p90']:
+            if num_features > 1:
+                column_names.extend([f'{prefix}_{prefix_stats}_{i}' for i in range(1, num_features + 1)])
+            else:
+                column_names.append(f'{prefix}_{prefix_stats}')
+
+    assert len(column_names) == 5 * (20 + 32 + 2)
+
+    feature_part1 = {}
+    for key, value in zip(column_names, features):
+        feature_part1[key] = value
+
+    sound = parselmouth.Sound(values=x, sampling_frequency=sample_rate, start_time=0)
+    intensity_attributes = get_intensity_attributes(sound)[0]
+    pitch_attributes = get_pitch_attributes(sound)[0]
+    spectrum_attributes = get_spectrum_attributes(sound)[0]
+    expanded_intensity_attributes = {f"Intensity_{key}": value for key, value in intensity_attributes.items()}
+    expanded_pitch_attributes = {f"Pitch_{key}": value for key, value in pitch_attributes.items()}
+    expanded_spectrum_attributes = {f"Spectrum_{key}": value for key, value in spectrum_attributes.items()}
+
+    feature_prosody = {
+        **expanded_intensity_attributes,  # Unpack expanded intensity attributes
+        **expanded_pitch_attributes,  # Unpack expanded pitch attributes
+        **expanded_spectrum_attributes,  # Unpack expanded spectrum attributes
+    }
+    feature_combined = {**feature_part1, **feature_prosody}
+    # print("feature_combined:",feature_combined)
+    return feature_combined
+
+def preprocess_signal(x_input):
+    sample_rate = 16000  # Example sample rate
+    min_duration_sec = 0.2  # Minimum duration in seconds
+    min_duration_samples = int(min_duration_sec * sample_rate)  # Convert to samples
+    max_duration_sec = 5  # Max duration in seconds
+    max_duration_samples = int(max_duration_sec * sample_rate)  # Convert to samples
+
+    # 检查音频是否为空
+    if len(x_input) == 0:
+        print(f"Skipping because input is empty.")
+        return
+
+    # 获取音频的实际时长 to be removed - only debug used
+    audio_duration = librosa.get_duration(y=x_input, sr=sample_rate)
+    print(f"Audio duration for : {audio_duration:.2f} seconds")
+    # 丢弃小于 0.128 秒的音频文件
+    if audio_duration < 0.128:
+        print(f"Skipping because input is too short (<0.128s).")
+        return
+    if audio_duration > 5:
+        print(f"[WARNING] input binary signal last more than 5 seconds.")
+
+    # Determine the number of samples in the current audio
+    current_samples = len(x_input)
+    # If the audio is shorter than the minimum duration, pad it with zeros
+    if current_samples < min_duration_samples:
+        padding_samples = min_duration_samples - current_samples
+        # Pad with zeros at the end of the audio signal
+        x = np.pad(x_input, (0, padding_samples), mode='constant')
+        print(f"Audio was padded to {min_duration_sec} seconds")
+    elif current_samples > max_duration_samples:
+        x = x_input[:max_duration_samples]
+    else:
+        x = x_input  # No padding needed
+
+    return x
+
+def audio_model_inference(x_input: np.ndarray):
+    try:
+        x = preprocess_signal(x_input)
+        # TODO 5 second windows
+        feature_test_instance = calc_feature_all_from_binary(x)
+        test_instance = [feature_test_instance[key] for key in selected_feature_name if key in feature_test_instance]
+        if not feature_test_instance:
+            print("[ATTENTION] - feature_test_instance is none:")
+            return None, None
+        # last semester score
+        final_score = calculate_final_score(test_instance)
+        # this semester score - replace [-1,0,1] with scaled max_prob * [-1,0,1]
+        sentiment_class_3_new, sentiment_3_new_score = CNN_Model_Predication_New(test_instance)
+
+        # if sentiment_class_3_new is list，then pick the first one
+        if isinstance(sentiment_class_3_new, list):
+            sentiment_class_3_new = sentiment_class_3_new[0]
+
+        combine_score = calculate_combine_score(test_instance, final_score, sentiment_3_new_score)
+
+        sentiment_category = determine_sentiment_category(sentiment_class_3_new)
+        if isinstance(combine_score, (int, float)):  # Check if it's an int or float
+            return float(combine_score), sentiment_category
+        else:
+            return None, None
+    except Exception as e:
+        print(f"[ERROR] Unexpected error: {e} at audio_model_inference()")
+        return None, None
+
 """## Boosting Model Predication"""
 
 model_file_dir='./models'
@@ -200,10 +322,10 @@ def Boosting_Model_Predication_New(test_instance):
 
 """## CNN Model Predication"""
 
-from tensorflow.keras.models import load_model
+
 #last semester
 def CNN_Model_Predication(test_instance):
-    model = load_model("./models/T2-0329-aug-VAL-R10-6042.h5", compile=False)
+    model = EMO_CNN_MODEL #load_model("./models/T2-0329-aug-VAL-R10-6042.h5", compile=False)
     X_test = test_instance
     X_test_cnn = np.expand_dims(X_test, axis=0).astype(np.float32)
 
@@ -213,24 +335,29 @@ def CNN_Model_Predication(test_instance):
 
 # CNN model prediction  ---this semester
 def CNN_Model_Predication_New(test_instance):
-    model = load_model("./models/NCS_SEN_CNN_T2_S1S3S2Aa_0916-B-7805.h5", compile=False)
+    model = NCS_SEN_CNN_MODEL  # load_model("./models/NCS_SEN_CNN_T2_S1S3S2Aa_0916-B-7805.h5", compile=False)
     X_test = test_instance
     X_test_cnn = np.expand_dims(X_test, axis=0).astype(np.float32)
 
-    y_pred = np.argmax(model.predict(X_test_cnn), axis=-1)
+    # Get the predicted probabilities from the softmax layer
+    y_pred_probs = model.predict(X_test_cnn)
+    # print("Softmax probabilities:", y_pred_probs)
+    y_pred = np.argmax(y_pred_probs, axis=-1)
+    # y_pred_coefficient = np.interp(np.max(y_pred_probs), (0.2, 0.7), (0, 1))
+    # y_pred = np.argmax(model.predict(X_test_cnn), axis=-1)
 
     if y_pred == 0:
-        final_sentiment_3_new = -1
+        sentiment_class_3_new = -1
     elif y_pred == 1:
-        final_sentiment_3_new = 0
+        sentiment_class_3_new = 0
     elif y_pred == 2:
-        final_sentiment_3_new = 1
-    print("this semester CNN Model output:", final_sentiment_3_new)
-    return final_sentiment_3_new
+        sentiment_class_3_new = 1
+    # print("this semester CNN Model output:", sentiment_class_3_new)
+    return sentiment_class_3_new, round(y_pred * sentiment_class_3_new, 4)
 
 """## singlish_model_inference"""
 def Singlish_Model_Predication(test_instance):
-    model = load_model("./models/NCS_LAN_MLP_V2_0916-A2-9722.h5", compile=False)
+    model = NCA_LAN_MLP_MODEL # load_model("./models/NCS_LAN_MLP_V2_0916-A2-9722.h5", compile=False)
     X_test = test_instance
     X_test_cnn = np.expand_dims(X_test, axis=0).astype(np.float32)
 
@@ -265,47 +392,7 @@ def retrieve_max_prob_random_forest(test_instance):
     # return predication1,max_prob
     return max_prob_rounded
 
-
-"""## Loop read wav files"""
-
-# 用于存储所有预测结果的列表
-# 打开CSV文件准备写入
-# csv_file_path = "predictions.csv"
-# with open(csv_file_path, mode='w', newline='') as file:
-#     writer = csv.writer(file)
-#     # 写入表头
-#     writer.writerow(["wav_file_path","boosting_prediction", "CNN_prediction"])
-#
-#
-#     for sess in range(1, 2):  # 记得改session 范围using one session due to memory constraint, can replace (1,2) with range(1, 6)
-#         file_path_1 = '{}Session{}/sentences/wav/'.format(iemocap_dir, sess)
-#         orig_wav_files = os.listdir(file_path_1)
-#         for orig_wav_file in orig_wav_files:
-#             wav_files = os.listdir(file_path_1 + '/' + orig_wav_file)
-#             for wav_file in wav_files:
-#                 if not wav_file.endswith('.wav'):
-#                     print("Wrong file:" + wav_file)
-#                     continue
-#
-#                 wav_file_path = file_path_1 + orig_wav_file + '/' + wav_file
-#                 # X, sr = librosa.load(wav_file_path + orig_wav_file + '/' + wav_file, sr=16000)
-#
-#                 # print(len(X))
-#                 # plt.figure(figsize=(15, 5))
-#                 # librosa.display.waveshow(X, sr=sr, color="blue")
-#
-#                 print(wav_file_path)
-#                 feature_test_instance = calc_feature_all(wav_file_path)
-#                 test_instance = [feature_test_instance[key] for key in selected_feature_name if key in feature_test_instance]
-#                 boosting_result = Boosting_Model_Predication(test_instance)
-#                 cnn_result = CNN_Model_Predication(test_instance)
-#                 writer.writerow([wav_file_path,boosting_result, cnn_result])
-#                 break
-#              # break # 加上break,每个D:\ISY5005 Capstone\IEMOCAP\IEMOCAP_full_release\Session1\sentences\wav\Ses01F_impro01这个目录下的第一个音频文件会打印出来; 不加break,所有的音频都会打印出来
-# print("Predictions have been written to", csv_file_path)
-
-# print(filtered_data)
-
+# region score mapping and weightages aggregation
 """## mapping 8 class to 3 class"""
 
 # last semester,PKL output is char
@@ -333,7 +420,6 @@ def determine_sentiment_category(combine_score):
     return sentiment_category
 
 
-
 weighted_score = 0
 """## Calculation final Score"""
 def calculate_final_score(test_instance):
@@ -349,7 +435,7 @@ def calculate_final_score(test_instance):
         confidence_value = 0
     else:
         coefficient = np.interp(max_prob, (0.2, 0.7), (0, 1))
-        confidence_value = coefficient
+        confidence_value = coefficient[0]
     # print("confidence value is: {}".format(confidence_value))
     # calculate weighted_score
     if model_predicate == "Anger":
@@ -369,11 +455,11 @@ def calculate_final_score(test_instance):
 
     # Round the final score to four decimal places
     final_score = np.round(score, 4)
-    print("last semester final score:",final_score)
+    print("last semester final score:", final_score)
     return final_score
 
 
-def calculate_combine_score(test_instance,final_score,final_sentiment_3_new):
+def calculate_combine_score(test_instance,final_score,sentiment_class_3_new):
     singlish_output = Singlish_Model_Predication(test_instance)
 
     if singlish_output == 0:  # Singlish output
@@ -382,11 +468,11 @@ def calculate_combine_score(test_instance,final_score,final_sentiment_3_new):
     else:
         weight_s1 = 0.8
         weight_s2 = 0.2
-    combine_score = final_score * weight_s1 + final_sentiment_3_new * weight_s2
+    combine_score = final_score * weight_s1 + sentiment_class_3_new * weight_s2
     print("Final combine score:", combine_score)
     return combine_score
 
-
+# endregion
 
 
 """## Retrieve Probability from RF"""
@@ -422,9 +508,9 @@ def retrieve_probability(test_instance):
 #
 #     final_score= calculate_final_score(test_instance)
 #
-#     final_sentiment_3_new= CNN_Model_Predication_New(test_instance)
+#     sentiment_class_3_new= CNN_Model_Predication_New(test_instance)
 #
-#     score=calculate_combine_score(test_instance,final_score,final_sentiment_3_new)
+#     score=calculate_combine_score(test_instance,final_score,sentiment_class_3_new)
 
 
     # test this semester pkl
@@ -432,8 +518,8 @@ def retrieve_probability(test_instance):
     # print(result)
 
     # test CNN model
-    # final_sentiment_3_new = CNN_Model_Predication_New(test_instance)
-    # sentiment_category = determine_sentiment_category(final_sentiment_3_new)
+    # sentiment_class_3_new = CNN_Model_Predication_New(test_instance)
+    # sentiment_category = determine_sentiment_category(sentiment_class_3_new)
 
 
 
