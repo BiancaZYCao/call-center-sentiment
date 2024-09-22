@@ -364,6 +364,12 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                             last_vad_end = segment[1]
                         if last_vad_beg > -1 and last_vad_end > -1:
                             # logger.debug(f"vad segment: {[last_vad_beg, last_vad_end]}")
+                            # try to use real timestamps
+                            original_vad_timeline = {
+                                "start_time_relative": segment[0] / 1000,
+                                "end_time_relative": segment[1] / 1000
+                            }
+                            logger.error(f"vad segment ms coordinates: {[last_vad_beg/1000, last_vad_end/1000]}")
                             last_vad_beg -= offset
                             last_vad_end -= offset
                             offset += last_vad_end
@@ -395,7 +401,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                     # text sentiment - send to queue
                                     result_text_dict = {
                                         "stt_text": result_text,
-                                        "timeline_data": {
+                                        "timeline_data":  {
                                             "start_time_relative": last_vad_beg / 1000,
                                             "end_time_relative": last_vad_end / 1000
                                         }
@@ -403,7 +409,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                     await stt_queue.put(result_text_dict)
                                     # audio sentiment
                                     final_audio_score, final_audio_class = audio_model_inference(vad_audio_chunk)
-                                    logger.error(f"final_audio_score: {final_audio_score}")
+                                    logger.debug(f"final_audio_score: {final_audio_score}")
                                     if final_audio_score and final_audio_class:
                                         # 保存每个VAD的开始时间，结束时间 - 20240912
                                         timeline_data.append({
@@ -510,27 +516,6 @@ async def update_chart():
         logger.error(f"Error processing audio: {e}")
         raise HTTPException(status_code=500, detail=f"Error updating chart: {str(e)}")
 
-
-
-@app.post("/topic-model/")
-async def topic_model(request: Request):
-    try:
-        # 从 HTTP 请求体中提取 JSON 数据
-        request_data = await request.json()
-        text = request_data.get("text")  # 提取传递的文本
-
-        if text:
-            # 调用 getTopics 方法处理文本
-            topics = tm.getTopics(text)
-            print(f"Extracted topics: {topics}")
-
-            # 将结果打包成 JSON 格式返回给客户端
-            return {"topics": topics}
-        else:
-            return {"error": "No text provided"}
-    except Exception as e:
-        print(f"Error: {e}")
-        return {"error": str(e)}
 
 
 

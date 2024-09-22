@@ -268,10 +268,6 @@ function startListening() {
                     tagElement.appendChild(closeButton);
                     tagsContainer.appendChild(tagElement);
                 });
-            } else {
-                // Display an error message if no topics are found
-                const topicModelResult = document.getElementById('topicModelResult');
-                // topicModelResult.textContent = `Error: No topics found or ${resJson.error}`;  // Display error information
             }
         }
     };
