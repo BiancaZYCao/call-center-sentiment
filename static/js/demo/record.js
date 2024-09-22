@@ -153,7 +153,7 @@ function startRecording() {
 
             // 显示情感分析结果
             if (type === 'text_sentiment') {
-                sentimentResult.textContent = `Sentiment: ${textData}  at ${timestamp.slice(0, 19)}`;
+                sentimentResult.textContent = `Sentiment: ${textData}  at ${timestamp.slice(11, 19)}`;
             }
 
             // 显示情感分析结果 音频情感分析处理 - new model- 20240915

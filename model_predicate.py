@@ -353,7 +353,7 @@ def CNN_Model_Predication_New(test_instance):
     elif y_pred == 2:
         sentiment_class_3_new = 1
     # print("this semester CNN Model output:", sentiment_class_3_new)
-    return sentiment_class_3_new, round(y_pred * sentiment_class_3_new, 4)
+    return sentiment_class_3_new, round(np.max(y_pred_probs) * sentiment_class_3_new, 4)
 
 """## singlish_model_inference"""
 def Singlish_Model_Predication(test_instance):

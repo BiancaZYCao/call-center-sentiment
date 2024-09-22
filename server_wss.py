@@ -17,6 +17,7 @@ import argparse
 import uvicorn
 from urllib.parse import parse_qs
 import os
+import asyncio
 from modelscope.pipelines import pipeline
 from modelscope.utils.constant import Tasks
 
@@ -294,6 +295,8 @@ class TranscriptionResponse(BaseModel):
 timeline_data = []  # Store timestamp
 final_score_list = []  # 存储所有的最终得分
 cache = {}  # 接收客户端传输的二进制音频数据
+# Create a global queue for passing STT results from WebSocket 1 to WebSocket 2
+stt_queue = asyncio.Queue()
 # 实时音频流的语音识别和说话人验证
 @app.websocket("/ws/transcribe")
 async def websocket_endpoint(websocket: WebSocket):
@@ -431,17 +434,41 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.info("Cleaned up resources after WebSocket disconnect")
 
 
-@app.post("/predict-sentiment/")
-async def predict_sentiment(request: Request):
-    request_data = await request.json()
-    text = request_data.get("text")
-    if text:
-        sentiment = text_sentiment_inference(text)
-        return {"sentiment": sentiment}
-    else:
-        return {"error": "No text provided"}
+@app.websocket("/ws/sentiment")
+async def websocket_sentiment_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        cache_text_client = ""
+        while True:
+            # Wait to get STT result from the queue
+            stt_result_text = await stt_queue.get()  # Waits until an STT result is available
+            print(f"Processing sentiment for: {stt_result_text}")
+            cache_text_client += " " + stt_result_text
+            if len(cache_text_client.split(' ')) >= 7:
+                text_sentiment_result = text_sentiment_inference(cache_text_client)
+                cache_text_client = ""
+                response_sentiment = TranscriptionResponse(
+                    code=0,
+                    msg=f"success",
+                    data=text_sentiment_result,
+                    type="text_sentiment",
+                    timestamp=datetime.utcnow().isoformat(),
+                    speaker_label="Client"
+                )
+                await websocket.send_json(response_sentiment.model_dump())
 
+            # Perform sentiment analysis (Replace with actual function)
+            sentiment_result = await text_sentiment_inference(stt_text)  # Sentiment analysis function
 
+            # Optionally, perform topic modeling as well (Replace with actual function)
+            topic_result = perform_topic_modeling(stt_text)
+
+            # Send sentiment and topic modeling results back to the client
+            await websocket.send_json({"sentiment": sentiment_result, "topics": topic_result})
+    except WebSocketDisconnect:
+        print("WebSocket 2 disconnected")
+    except Exception as e:
+        print(f"Error in WebSocket 2: {e}")
 
 # 更新折线图
 @app.post("/update-chart/")
