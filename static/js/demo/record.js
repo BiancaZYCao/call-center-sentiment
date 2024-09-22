@@ -19,6 +19,7 @@ var startTime = null;        // 记录录音的开始时间
 var timeStamps = [];         // 存储时间戳
 var scores = [];             // 存储 final_score
 var isRecording = false;     // 标记是否正在录音
+var startFetchChart = false;
 
 // 兼容性处理，不同浏览器可以实现getUserMedia API
 // navigator.getUserMedia是用于捕获用户的音频/视频流（如麦克风录音）的 API
@@ -90,6 +91,7 @@ function updateGauge(finalScore, finalSentiment) {
 // recordButton绑定点击事件处理函数
 recordButton.onclick = function () {
     if (!isRecording) {  //麦克风当前没有在录音，应该开始录音
+        startListening();
         startRecording();
     } else {  //麦克风已经在录音，应该停止录音
         stopRecording();
@@ -151,17 +153,13 @@ function startRecording() {
             var timestamp = resJson.timestamp || 'no timestamp';
 
 
-            // 显示情感分析结果
-            if (type === 'text_sentiment') {
-                sentimentResult.textContent = `Sentiment: ${textData}  at ${timestamp.slice(11, 19)}`;
-            }
-
             // 显示情感分析结果 音频情感分析处理 - new model- 20240915
             if (type === 'audio_sentiment') {
                 var audioData = JSON.parse(textData);  // Parse the JSON string in 'data'
                 var finalScore = Number(audioData.final_score);  // Cast final_score to a number
                 updateGauge(finalScore, audioData.final_sentiment_3);  // Update gauge
                 responseResult.textContent = `Final Sentiment (3 Classes): ${audioData.final_sentiment_3}\n`;
+                startFetchChart = true;
             }
 
             // 显示转录结果 加上说话者身份
@@ -178,98 +176,6 @@ function startRecording() {
             transcriptionResult.textContent += "\n" + evt.data;  // 如果解析失败，直接显示原始数据
         }
 
-        try {
-            // TODO: move model inferencing function to backend, no API call here
-            if (speaker.toLowerCase().includes('client') && (type === 'STT')) {
-                // 累积 pendingTextData 的词数和当前 textData 的词数
-                var totalWords = pendingTextData.split(' ').length + textData.split(' ').length;
-
-                // 如果总词数少于 7 个词，继续累积
-                if (textData && totalWords < minWordCount) {
-                    pendingTextData += ' ' + textData;  // 累积 pendingTextData
-                    console.log('Text data:', textData);
-                    console.log('Total words:', totalWords);
-                } else {
-                    speaker_last = 'unknown'; // reset
-                    // 如果总词数大于等于 7 个词，或者已经合并了足够的 textData，进行发送
-                    textData = pendingTextData ? pendingTextData + ' ' + textData : textData;
-                    pendingTextData = '';  // 清空 pendingTextData
-
-                    console.log('Text data:', textData);
-                    console.log('Total words:', totalWords);
-
-
-                    // 发送到 /topic-model/
-                    fetch('http://127.0.0.1:8000/topic-model/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({text: textData})  // 将 textData 发送到后端进行主题分析
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.topics) {
-                                // 清空之前的 tags 容器
-                                const tagsContainer = document.getElementById("tags-container");
-                                tagsContainer.innerHTML = '';
-
-                                // 遍历 topics 数组，动态生成并插入标签
-                                data.topics.forEach(topic => {
-                                    const tagElement = document.createElement('div');
-                                    tagElement.className = 'tag tag-primary'; // 您可以根据需要使用不同的类，如 tag-success, tag-info 等
-                                    tagElement.textContent = topic;  // 将每个主题设置为标签内容
-
-                                    // 创建关闭按钮并附加到标签
-                                    const closeButton = document.createElement('span');
-                                    closeButton.className = 'close';
-                                    closeButton.textContent = '×';
-                                    closeButton.onclick = function () {
-                                        tagsContainer.removeChild(tagElement);  // 点击关闭按钮时移除标签
-                                    };
-
-                                    tagElement.appendChild(closeButton);  // 将关闭按钮添加到标签
-                                    tagsContainer.appendChild(tagElement);  // 将标签插入到 tags-container 中
-                                });
-                            } else {
-                                topicModelResult.textContent = `Error: ${data.error}`;  // 显示错误信息
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            topicModelResult.textContent = `Error: ${error}`;
-                        });
-
-                }
-            }
-
-
-            //update chart
-            // Fetch data from the server and update chart
-            fetch('http://127.0.0.1:8000/update-chart/', {
-                method: 'POST',  // Use POST method to send the request
-                headers: {
-                    'Content-Type': 'application/json'  // Set the request content type to JSON
-                }
-            })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok ' + response.statusText);  // Throw an error if response is not ok
-                    }
-                    return response.json();  // Parse the JSON response
-                })
-                .then(data => {
-                    const endTimeList = data.end_time;  // Extract end_time from the response data
-                    const scoreList = data.final_score;  // Extract final_score from the response data
-                    updateChart(endTimeList, scoreList);  // Call the function to update chart with new data
-                })
-                .catch(error => {
-                    console.error('Error chart update:', error);  // Log any errors that occur during the fetch
-                });
-
-        } catch (err) {
-            console.error('Error:', err);
-        }
     };
 
     ws.onclose = function () {
@@ -285,6 +191,102 @@ function startRecording() {
     isRecording = true;
 }
 
+function startListening() {
+    console.log('Start Listening to get analysis result');
+
+    //1. Build WebSocket Connection
+    wsAnalysis = new WebSocket(`ws://127.0.0.1:8000/ws/analysis`);
+
+    // 2. Handle WebSocket connection opening
+    wsAnalysis.onopen = function (event) {
+        console.log('WebSocket Analysis connection established');
+
+        // 3. Set interval to call update-chart API every second
+        setInterval(function () {
+            if (startFetchChart) {
+                // Fetch chart updates every 1 second
+                // Fetch data from the server and update chart
+                fetch('http://127.0.0.1:8000/update-chart/', {
+                    method: 'POST',  // Use POST method to send the request
+                    headers: {
+                        'Content-Type': 'application/json'  // Set the request content type to JSON
+                    }
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok ' + response.statusText);  // Throw an error if response is not ok
+                        }
+                        return response.json();  // Parse the JSON response
+                    })
+                    .then(data => {
+                        //update chart
+                        var endTimeList = data.end_time;  // Extract end_time from the response data
+                        var scoreList = data.final_score;  // Extract final_score from the response data
+                        updateChart(endTimeList, scoreList);  // Call the function to update chart with new data
+                    })
+                    .catch(error => {
+                        console.error('Error chart update:', error);  // Log any errors that occur during the fetch
+                    });
+            }
+        }, 2500); // 1000ms = 1 second
+    };
+
+    // 4. Handle incoming messages from the WebSocket
+    wsAnalysis.onmessage = function (event) {
+        var resJson = JSON.parse(event.data);  // Parse the incoming JSON data
+        var textData = resJson.data;         // Parse data content
+        var processedAt = resJson.timestamp || 'no timestamp';
+
+        // Check the type of response, process sentiment analysis result
+        if (resJson.type === "text_sentiment") {
+            sentimentResult.textContent = `Sentiment: ${textData}  at ${processedAt.slice(11, 19)}`;
+        }
+
+        if (resJson.type === "topics") {
+            // Parse the textData to a list
+            var topics = textData ? JSON.parse(textData) : null;
+            console.debug('topics receieved:', topics)
+            if (topics && topics.length > 0) {
+                // Clear the previous tags container
+                const tagsContainer = document.getElementById("tags-container");
+                tagsContainer.innerHTML = '';
+
+                // Iterate over the topics array and dynamically generate and insert tags
+                topics.forEach(topic => {
+                    const tagElement = document.createElement('div');
+                    tagElement.className = 'tag tag-primary';  // Set class name for styling (e.g., tag-success, tag-info, etc.)
+                    tagElement.textContent = topic;  // Set the topic as the tag content
+
+                    // Create a close button for each tag
+                    const closeButton = document.createElement('span');
+                    closeButton.className = 'close';
+                    closeButton.textContent = '×';
+                    closeButton.onclick = function () {
+                        tagsContainer.removeChild(tagElement);  // Remove the tag when the close button is clicked
+                    };
+
+                    tagElement.appendChild(closeButton);
+                    tagsContainer.appendChild(tagElement);
+                });
+            } else {
+                // Display an error message if no topics are found
+                const topicModelResult = document.getElementById('topicModelResult');
+                // topicModelResult.textContent = `Error: No topics found or ${resJson.error}`;  // Display error information
+            }
+        }
+    };
+
+    // 5. Handle WebSocket errors
+    wsAnalysis.onerror = function (event) {
+        console.error('WebSocket error:', event);
+    };
+
+    // 6. Handle WebSocket closure
+    wsAnalysis.onclose = function (event) {
+        console.log('WebSocket Analysis connection closed');
+    };
+}
+
 function stopRecording() {
     console.log('Stop Recording');
     if (ws) {
@@ -295,6 +297,15 @@ function stopRecording() {
     recordButton.textContent = "Start Recording";
     recordButton.classList.remove("recording");
     isRecording = false;
+    startFetchChart = false;
+
+    // Close the second WebSocket (for sentiment analysis) after 5 seconds
+    setTimeout(function() {
+        if (wsAnalysis) {
+            console.log('Closing second WebSocket after 5 seconds');
+            wsAnalysis.close();  // Close the second WebSocket connection
+        }
+    }, 5000);  // 5000ms = 5 seconds
 }
 
 function init(rec) {
