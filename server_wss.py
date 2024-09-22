@@ -17,6 +17,7 @@ import argparse
 import uvicorn
 from urllib.parse import parse_qs
 import os
+import asyncio
 from modelscope.pipelines import pipeline
 from modelscope.utils.constant import Tasks
 
@@ -29,6 +30,10 @@ from model_predicate import determine_sentiment, calc_feature_all, selected_feat
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from TopicModel import TopicModel
 from fastapi.middleware.cors import CORSMiddleware
+import pytz
+
+# Get current time in Singapore
+singapore_tz = pytz.timezone('Asia/Singapore')
 
 # import os
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -275,7 +280,7 @@ async def custom_exception_handler(request: Request, exc: Exception):
             msg=message,
             data=data,
             type='error',
-            timestamp=datetime.utcnow().isoformat(),  # UTC timestamp
+            timestamp=datetime.now(singapore_tz).isoformat(),  # UTC timestamp
         ).model_dump()
     )
 
@@ -289,21 +294,30 @@ class TranscriptionResponse(BaseModel):
     timestamp: str  # Include timestamp as an ISO format string
     speaker_label: str = ""  # Speaker label
 
+class AnalysisResponse(BaseModel):
+    code: int = 0
+    msg: str = 'success'
+    data: str
+    type: str  # e.g. 'text-sentiment', 'topic', 'audio-sentiment'
+    timestamp: str  # Include timestamp as an ISO format string
 
 # 全局变量
 timeline_data = []  # Store timestamp
 final_score_list = []  # 存储所有的最终得分
 cache = {}  # 接收客户端传输的二进制音频数据
+# Create a global queue for passing STT results from WebSocket 1 to WebSocket 2
+stt_queue = asyncio.Queue()
+tm = TopicModel()
 # 实时音频流的语音识别和说话人验证
 @app.websocket("/ws/transcribe")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket_trans: WebSocket):
     try:
         # 1. websocket 连接处理
-        query_params = parse_qs(websocket.scope['query_string'].decode())
+        query_params = parse_qs(websocket_trans.scope['query_string'].decode())
         sv = query_params.get('sv', ['false'])[0].lower() in ['true', '1', 't', 'y', 'yes']
         lang = query_params.get('lang', ['en'])[0].lower()
 
-        await websocket.accept()  # 接受 WebSocket 连接，开始与客户端通信
+        await websocket_trans.accept()  # 接受 WebSocket 连接，开始与客户端通信
 
         # 2. 音频块大小的计算
         # 计算每个音频块的大小（以字节为单位），用于切分音频数据流。
@@ -324,7 +338,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
         # 4.  接收音频数据并进行处理
         while True:
-            data = await websocket.receive_bytes()  # 接收客户端传输的二进制音频数据
+            data = await websocket_trans.receive_bytes()  # 接收客户端传输的二进制音频数据
             # logger.debug(f"received {len(data)} bytes")
 
             audio_buffer = np.append(audio_buffer, np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0)
@@ -350,6 +364,12 @@ async def websocket_endpoint(websocket: WebSocket):
                             last_vad_end = segment[1]
                         if last_vad_beg > -1 and last_vad_end > -1:
                             # logger.debug(f"vad segment: {[last_vad_beg, last_vad_end]}")
+                            # try to use real timestamps
+                            original_vad_timeline = {
+                                "start_time_relative": segment[0] / 1000,
+                                "end_time_relative": segment[1] / 1000
+                            }
+                            logger.error(f"vad segment ms coordinates: {[last_vad_beg/1000, last_vad_end/1000]}")
                             last_vad_beg -= offset
                             last_vad_end -= offset
                             offset += last_vad_end
@@ -362,24 +382,34 @@ async def websocket_endpoint(websocket: WebSocket):
                             # 调用process_vad_audio()函数对这些片段进一步处理 --- old
                             speaker_label, transcript_result = process_vad_audio(audio_vad[beg:end], sv, lang)  # todo: async
                             logger.debug(f"[process_vad_audio] {speaker_label}: {transcript_result}")
-                            result_text = format_str_v3(transcript_result[0]['text'])
+
 
                             if transcript_result is not None:
+                                result_text = format_str_v3(transcript_result[0]['text'])
                                 # speech to text transcript results
                                 response = TranscriptionResponse(
                                     code=0,
                                     msg=f"success",
                                     data=result_text,
                                     type="STT",
-                                    timestamp=datetime.utcnow().isoformat(),
+                                    timestamp=datetime.now(singapore_tz).isoformat(),
                                     speaker_label=speaker_label
                                 )
-                                await websocket.send_json(response.model_dump())
+                                await websocket_trans.send_json(response.model_dump())
 
                                 if speaker_label == "Client":
+                                    # text sentiment - send to queue
+                                    result_text_dict = {
+                                        "stt_text": result_text,
+                                        "timeline_data":  {
+                                            "start_time_relative": last_vad_beg / 1000,
+                                            "end_time_relative": last_vad_end / 1000
+                                        }
+                                    }
+                                    await stt_queue.put(result_text_dict)
                                     # audio sentiment
                                     final_audio_score, final_audio_class = audio_model_inference(vad_audio_chunk)
-                                    logger.error(f"final_audio_score: {final_audio_score}")
+                                    logger.debug(f"final_audio_score: {final_audio_score}")
                                     if final_audio_score and final_audio_class:
                                         # 保存每个VAD的开始时间，结束时间 - 20240912
                                         timeline_data.append({
@@ -397,25 +427,11 @@ async def websocket_endpoint(websocket: WebSocket):
                                             msg=f"success",
                                             data=response_audio__data_str,
                                             type="audio_sentiment",
-                                            timestamp=datetime.utcnow().isoformat(),
+                                            timestamp=datetime.now(singapore_tz).isoformat(),
                                             speaker_label=speaker_label
                                         )
-                                        await websocket.send_json(response_audio.model_dump())
+                                        await websocket_trans.send_json(response_audio.model_dump())
 
-                                    # text sentiment
-                                    cache_text_client += " " + result_text
-                                    if len(cache_text_client.split(' ')) >= 7:
-                                        text_sentiment_result = text_sentiment_inference(cache_text_client)
-                                        cache_text_client = ""
-                                        response_sentiment = TranscriptionResponse(
-                                            code=0,
-                                            msg=f"success",
-                                            data=text_sentiment_result,
-                                            type="text_sentiment",
-                                            timestamp=datetime.utcnow().isoformat(),
-                                            speaker_label="Client"
-                                        )
-                                        await websocket.send_json(response_sentiment.model_dump())
                             audio_vad = audio_vad[end:]  # 已经处理过的片段移除，保留未处理的部分
                             last_vad_beg = last_vad_end = -1  # 重置 VAD 片段标记
 
@@ -423,7 +439,7 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.info("WebSocket disconnected")
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-        await websocket.close()
+        await websocket_trans.close()
     finally:
         audio_buffer = np.array([])
         audio_vad = np.array([])
@@ -431,22 +447,52 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.info("Cleaned up resources after WebSocket disconnect")
 
 
-@app.post("/predict-sentiment/")
-async def predict_sentiment(request: Request):
-    request_data = await request.json()
-    text = request_data.get("text")
-    if text:
-        sentiment = text_sentiment_inference(text)
-        return {"sentiment": sentiment}
-    else:
-        return {"error": "No text provided"}
+@app.websocket("/ws/analysis")
+async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
+    await websocket_analysis.accept()
+    try:
+        cache_text_client = ""
+        while True:
+            # Wait to get STT result from the queue
+            stt_result_dict = await stt_queue.get()  # Waits until an STT result is available
+            stt_result_text = stt_result_dict["stt_text"]
 
+            print(f"Processing sentiment for: {stt_result_text}")
+            received_at = datetime.now(singapore_tz).isoformat()
+            cache_text_client += " " + stt_result_text
+            if len(cache_text_client.split(' ')) >= 7:
+                # Sentiment on Text
+                text_sentiment_result = text_sentiment_inference(cache_text_client)
+                response_sentiment = AnalysisResponse(
+                    data=text_sentiment_result,
+                    type="text_sentiment",
+                    timestamp=received_at
+                )
+                await websocket_analysis.send_json(response_sentiment.model_dump())
 
+                # Perform topic modeling as well
+                topic_results = tm.getTopics(cache_text_client)
+                topic_results_str = json.dumps(list(set(topic_results)))
+                response_topic = AnalysisResponse(
+                    data=topic_results_str,
+                    type="topics",
+                    timestamp=received_at
+                )
+                # Send topic modeling results back to the client
+                await websocket_analysis.send_json(response_topic.model_dump())
+                cache_text_client = ""  # reset
+    except WebSocketDisconnect:
+        print("WebSocket Analysis disconnected")
+    except Exception as e:
+        print(f"Error in WebSocket Analysis: {e}")
 
 # 更新折线图
 @app.post("/update-chart/")
 async def update_chart():
     try:
+        if not timeline_data or not final_score_list:  # Check if the lists are empty
+            return {"end_time": None, "final_score": None}
+
         accumulate_end_time = 0  # 用于累积的结束时间
         end_time_list = []  # 存储所有的结束时间
 
@@ -470,27 +516,6 @@ async def update_chart():
         logger.error(f"Error processing audio: {e}")
         raise HTTPException(status_code=500, detail=f"Error updating chart: {str(e)}")
 
-
-tm = TopicModel()
-@app.post("/topic-model/")
-async def topic_model(request: Request):
-    try:
-        # 从 HTTP 请求体中提取 JSON 数据
-        request_data = await request.json()
-        text = request_data.get("text")  # 提取传递的文本
-
-        if text:
-            # 调用 getTopics 方法处理文本
-            topics = tm.getTopics(text)
-            print(f"Extracted topics: {topics}")
-
-            # 将结果打包成 JSON 格式返回给客户端
-            return {"topics": topics}
-        else:
-            return {"error": "No text provided"}
-    except Exception as e:
-        print(f"Error: {e}")
-        return {"error": str(e)}
 
 
 
