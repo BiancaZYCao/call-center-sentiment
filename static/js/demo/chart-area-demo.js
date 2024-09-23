@@ -46,6 +46,7 @@ var myLineChart = new Chart(ctx, {  // Create a new line chart
       pointHitRadius: 10,  // Radius of the points hit area
       pointBorderWidth: 2,  // Width of the point border
       data: [],  // Start with empty data (y-axis)
+      spanGaps: false  // This ensures the line breaks when there is a null value
     }],
   },
   options: {
@@ -121,18 +122,6 @@ var myLineChart = new Chart(ctx, {  // Create a new line chart
 
 
 // Function to update the chart with new data
-// function updateChart(endTimeList, scoreList) {
-//     // 获取并保留两位小数的最新的时间和得分
-//     const latestEndTime = parseFloat(endTimeList[endTimeList.length - 1]).toFixed(2);  // 保留两位小数的时间
-//     const latestScore = parseFloat(scoreList[scoreList.length - 1]).toFixed(2);  // 保留两位小数的得分
-//
-//     // 只添加最新的时间和得分到图表中
-//     myLineChart.data.labels.push(latestEndTime);  // 添加最新的时间值到X轴
-//     myLineChart.data.datasets[0].data.push(latestScore);  // 添加最新的得分值到Y轴
-//
-//     // 重新绘制图表
-//     myLineChart.update();
-// }
 function updateChart(endTimeList, scoreList) {
     // Compare the current number of labels in the chart with the number of new end times
     const chartDataLength = myLineChart.data.labels.length;
@@ -146,7 +135,10 @@ function updateChart(endTimeList, scoreList) {
         // Loop through extra data points and push them to the chart
         for (let i = 0; i < extraEndTimes.length; i++) {
             const latestEndTime = parseFloat(extraEndTimes[i]).toFixed(2);  // Ensure 2 decimal places
-            const latestScore = parseFloat(extraScores[i]).toFixed(2);      // Ensure 2 decimal places
+            const latestScore = extraScores[i] !== null && extraScores[i] !== undefined
+                ? parseFloat(extraScores[i]).toFixed(2) : null;  // Or assign a default value, like 0 or an empty string
+          // const latestScore = parseFloat(extraScores[i]).toFixed(2);      // Ensure 2 decimal places
+
 
             // Add the latest time and score to the chart
             myLineChart.data.labels.push(latestEndTime);  // Push latest end time to X-axis
@@ -157,4 +149,3 @@ function updateChart(endTimeList, scoreList) {
         myLineChart.update();
     }
 }
-

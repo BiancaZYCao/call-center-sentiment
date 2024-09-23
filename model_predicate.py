@@ -329,7 +329,7 @@ def CNN_Model_Predication(test_instance):
     X_test = test_instance
     X_test_cnn = np.expand_dims(X_test, axis=0).astype(np.float32)
 
-    y_pred = np.argmax(model.predict(X_test_cnn), axis=-1)
+    y_pred = np.argmax(model.predict(X_test_cnn, verbose=0), axis=-1)
     print("CNN Model Predication:",y_pred)
     return y_pred
 
@@ -340,11 +340,11 @@ def CNN_Model_Predication_New(test_instance):
     X_test_cnn = np.expand_dims(X_test, axis=0).astype(np.float32)
 
     # Get the predicted probabilities from the softmax layer
-    y_pred_probs = model.predict(X_test_cnn)
+    y_pred_probs = model.predict(X_test_cnn, verbose=0)
     # print("Softmax probabilities:", y_pred_probs)
     y_pred = np.argmax(y_pred_probs, axis=-1)
     # y_pred_coefficient = np.interp(np.max(y_pred_probs), (0.2, 0.7), (0, 1))
-    # y_pred = np.argmax(model.predict(X_test_cnn), axis=-1)
+    # y_pred = np.argmax(model.predict(X_test_cnn, verbose=0), axis=-1)
 
     if y_pred == 0:
         sentiment_class_3_new = -1
@@ -361,7 +361,7 @@ def Singlish_Model_Predication(test_instance):
     X_test = test_instance
     X_test_cnn = np.expand_dims(X_test, axis=0).astype(np.float32)
 
-    y_pred = np.argmax(model.predict(X_test_cnn), axis=-1)
+    y_pred = np.argmax(model.predict(X_test_cnn, verbose=0), axis=-1)
     print("Singlish Model Predication:",y_pred)
     return y_pred
 

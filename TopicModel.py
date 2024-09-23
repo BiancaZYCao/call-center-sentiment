@@ -217,13 +217,13 @@ class TopicModel(metaclass=SingletonMeta):
     def load_lda_model(self, path):
         """Load the trained LDA model."""
         model = joblib.load(path)
-        print(f"LDA model loaded from {path}")
+        #print(f"LDA model loaded from {path}")
         return model
 
     def load_lda_vectorizer(self, path):
         """Load the trained vectorizer."""
         vectorizer = joblib.load(path)
-        print(f"Vectorizer loaded from {path}")
+        #print(f"Vectorizer loaded from {path}")
         return vectorizer
     
 
@@ -258,7 +258,7 @@ class TopicModel(metaclass=SingletonMeta):
         # Load the saved model
         model_path = "./models/bertopic_model11"  # Path where the model was saved
         self.topic_model = BERTopic.load(model_path)
-        print("BERTopic model loaded successfully.")
+        #print("BERTopic model loaded successfully.")
 
 
     def getEntityTopic(self, text, n_top_words=10):
@@ -284,7 +284,7 @@ class TopicModel(metaclass=SingletonMeta):
         # Preprocess the text
         text = self.preprocess_text_2(text)
         #text = self.text_preprocessing(text, self.nlp)
-        print("Preprocessed text = ", text)
+        #print("Preprocessed text = ", text)
 
         # Create a list to store the found keywords
         found_keywords = []
@@ -314,7 +314,7 @@ class TopicModel(metaclass=SingletonMeta):
         #print("found_keywords = ", found_keywords[:n_top_words])
         
         #self.topics = found_category
-        #print("self.topics = ", self.topics)
+        #print("[Topic] topics = ", self.topics)
         return self.topics[:n_top_words]
     
 
@@ -324,7 +324,7 @@ class TopicModel(metaclass=SingletonMeta):
         #preprocessed_texts = tp.text_preprocessing(sentence)
         #preprocessed_texts = self.remove_duplicates(preprocessed_texts)
         #preprocessed_texts_joined = [' '.join(preprocessed_texts)]
-        print("Preprocessed text = ", preprocessed_doc)
+        #print("Preprocessed text = ", preprocessed_doc)
 
         # Step 2: Transform the document to match the vectorizer (which should have been trained with n-grams)
         doc_term_matrix = self.vectorizer.transform([preprocessed_doc])  # Treat as a single document
@@ -336,18 +336,18 @@ class TopicModel(metaclass=SingletonMeta):
         feature_names = self.vectorizer.get_feature_names_out()
 
         # Step 5: Print the topic distribution and the top n-grams for the most likely topic
-        print(f"\nDocument topic distribution: {topic_distribution}")
+        #print(f"\nDocument topic distribution: {topic_distribution}")
         
         # Get the most likely topic for this document
         most_likely_topic = topic_distribution.argmax()
-        print(f"Most likely topic: Topic {most_likely_topic}")
+        #print(f"Most likely topic: Topic {most_likely_topic}")
         
         # Display the top n-grams for the most likely topic
         top_words = [feature_names[j] for j in self.lda_model.components_[most_likely_topic].argsort()[:-n_top_words - 1:-1]]
         if len(top_words) == 0:
             return []
         self.topics = top_words[:n_top_words]
-        print(f"Top words/n-grams for Topic {most_likely_topic}: {top_words}")
+        #print(f"Top words/n-grams for Topic {most_likely_topic}: {top_words}")
 
         return self.topics
 
@@ -370,7 +370,7 @@ class TopicModel(metaclass=SingletonMeta):
             percent_index = int(n * 0.3)
             # Get the first 10% of the list using slicing
             preprocessed_texts = preprocessed_texts[:percent_index]
-        print("preprocessed_texts = ", preprocessed_texts)
+        #print("preprocessed_texts = ", preprocessed_texts)
 
         if n == 0:
             return []
@@ -385,7 +385,7 @@ class TopicModel(metaclass=SingletonMeta):
 
         # Check if topics exist
         if not topics:
-            print("No topics found in the model.")
+            #print("No topics found in the model.")
             return None, None
 
         topic_words = []
@@ -396,9 +396,9 @@ class TopicModel(metaclass=SingletonMeta):
             # Extract the words from the list of tuples
             words_list = [word for word, score in topic_words]
             sent = [' '.join(words_list)]
-            #print(f"Words for topic {topic}: {topic_words}")
+            ##print(f"Words for topic {topic}: {topic_words}")
             topic_embedding = embedding_model(sent)
-            #print(f"topic sentence {topic} = ", sent)
+            ##print(f"topic sentence {topic} = ", sent)
             similarities = cosine_similarity(sentence_embedding, topic_embedding)
             similarities_result[topic] = similarities
 
@@ -407,13 +407,13 @@ class TopicModel(metaclass=SingletonMeta):
         sorted_data = sorted(similarities_result.items(), key=lambda x: x[1][0][0], reverse=True)
 
         # Print the sorted list of tuples
-        for k, v in sorted_data:
-            print(f"Key: {k}, Value: {v[0][0]}")
+        # for k, v in sorted_data:
+        #     print(f"Key: {k}, Value: {v[0][0]}")
 
         best_key = sorted_data[0][0]
         best_value = sorted_data[0][1][0][0] 
-        print("best_key = ", best_key)
-        print("best_value = ", best_value)
+        #print("best_key = ", best_key)
+        #print("best_value = ", best_value)
 
         # if the best topics is less than the threshold, return an empty list
         if best_value < topic_threshold:
@@ -431,12 +431,12 @@ class TopicModel(metaclass=SingletonMeta):
         prompt = "List " + str(num_of_questions) + " questions that can be generated from the topic \'" + topic + "\' as a Python list that can be assigned to a variable."
         prompt += "The generated questions should be in the context of \'" + category + "\' and targeted to its representative."
         #prompt += "Output the questions as a Python list. "
-        #print("Prompt: ", prompt)
+        ##print("Prompt: ", prompt)
 
         response = self.getResponseForQuestions(prompt)
         questions = self.extractListFromResponse(response)
 
-        #print(questions)
+        ##print(questions)
         return questions
 
     # Function to get generated questions for each topic.
@@ -447,7 +447,7 @@ class TopicModel(metaclass=SingletonMeta):
         category = ""
         if len(self.topics) > 0:
             category = self.topics[0]
-            #print("topics = ", self.topics)
+            ##print("topics = ", self.topics)
             for topic in self.topics:
                 if topic not in topicsAndQuestions:
                     topicsAndQuestions[topic] = []  # Initialize an empty list if the key doesn't exist
@@ -467,7 +467,7 @@ class TopicModel(metaclass=SingletonMeta):
 
         # Now `credit_card_questions` is a Python list
         #for item in items:
-        #    print(item)
+        #    #print(item)
         
         return items
 
@@ -475,7 +475,7 @@ class TopicModel(metaclass=SingletonMeta):
         text = text_preprocessing(text)
         sparse_vectorizer = CountVectorizer(strip_accents='unicode')
         sparse_vectors = sparse_vectorizer.fit_transform(text)
-        # print(sparse_vectors.shape)
+        # #print(sparse_vectors.shape)
         # To define number of topics
         n_topics = 1
 
@@ -562,7 +562,7 @@ class TopicModel(metaclass=SingletonMeta):
         #preprocessed_sentence = spell_correction(preprocessed_sentence)
 
         preprocessed_sentence = " ".join(preprocessed_sentence)
-        #print("processed user sentence: ", preprocessed_sentence)
+        ##print("processed user sentence: ", preprocessed_sentence)
         return preprocessed_sentence
 
     def lemmatize_token(self, token):

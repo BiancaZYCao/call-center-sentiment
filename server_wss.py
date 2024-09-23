@@ -2,7 +2,7 @@ from datetime import datetime
 import json
 import logging
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 from fastapi import Request, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -41,6 +41,13 @@ singapore_tz = pytz.timezone('Asia/Singapore')
 # from sklearn import set_config
 # set_config(assume_finite=True)
 
+# Mute OpenAI logging
+logging.getLogger('openai').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+# Mute httpcore debug messages
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+logging.getLogger('httpcore.connection').setLevel(logging.WARNING)
+logging.getLogger('httpcore.http11').setLevel(logging.WARNING)
 
 
 # region ASR: STT & speaker verification
@@ -195,6 +202,9 @@ model = AutoModel(
     disable_update=True  # 禁用模型的自动更新功能，防止在处理过程中更新模型参数。
 )
 
+model_name_emo2vec = "iic/emotion2vec_plus_base"
+model_emo2vec = AutoModel(model=model_name_emo2vec)
+
 reg_spks_files = [
     "speaker/agent_0013.wav",
     "speaker/agent_0001.wav",
@@ -232,13 +242,28 @@ def process_vad_audio(audio, sv=True, lang="en"):
         res_sv = sv_pipeline([audio, v["data"]], thr=config.sv_thr)
         # logger.debug(f"[speaker check] {k}: {res_sv}")
         if res_sv["score"] >= config.sv_thr:
-            logger.debug(f"[speaker check identified] {k}: score at {res_sv['score']}")
+            logger.warning(f"[speaker check identified] {k}: score at {res_sv['score']}")
             speaker_label = "Agent"
             break
 
     return speaker_label, asr_pipeline(audio, language=lang.strip())
 
 # endregion
+
+async def async_save_and_infer_emotion(wav_file_path, vad_audio_chunk, sample_rate):
+    await asyncio.to_thread(
+        sf.write, wav_file_path, vad_audio_chunk, sample_rate, format='WAV', subtype='PCM_16'
+    )
+    # result = await asyncio.to_thread(
+    #     model.generate,
+    #     wav_file_path,
+    #     output_dir="./outputs",
+    #     granularity="utterance",
+    #     extract_embedding=False
+    # )
+    # logger.debug("[EMO2VEC] emotion2vec result: ", result)
+    # return result
+
 
 app = FastAPI()
 
@@ -302,12 +327,12 @@ class AnalysisResponse(BaseModel):
     timestamp: str  # Include timestamp as an ISO format string
 
 # 全局变量
-timeline_data = []  # Store timestamp
 final_score_list = []  # 存储所有的最终得分
 cache = {}  # 接收客户端传输的二进制音频数据
 # Create a global queue for passing STT results from WebSocket 1 to WebSocket 2
 stt_queue = asyncio.Queue()
 tm = TopicModel()
+end_time_list = []  # 存储所有的结束时间
 # 实时音频流的语音识别和说话人验证
 @app.websocket("/ws/transcribe")
 async def websocket_endpoint(websocket_trans: WebSocket):
@@ -381,7 +406,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
 
                             # 调用process_vad_audio()函数对这些片段进一步处理 --- old
                             speaker_label, transcript_result = process_vad_audio(audio_vad[beg:end], sv, lang)  # todo: async
-                            logger.debug(f"[process_vad_audio] {speaker_label}: {transcript_result}")
+                            # logger.debug(f"[process_vad_audio] {speaker_label}: {transcript_result}")
 
 
                             if transcript_result is not None:
@@ -397,6 +422,10 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                 )
                                 await websocket_trans.send_json(response.model_dump())
 
+                                if speaker_label == "Agent":
+                                    end_time_list.append(offset / 1000)
+                                    final_score_list.append(None)
+
                                 if speaker_label == "Client":
                                     # text sentiment - send to queue
                                     result_text_dict = {
@@ -407,36 +436,83 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                         }
                                     }
                                     await stt_queue.put(result_text_dict)
-                                    # audio sentiment
-                                    final_audio_score, final_audio_class = audio_model_inference(vad_audio_chunk)
-                                    logger.debug(f"final_audio_score: {final_audio_score}")
-                                    if final_audio_score and final_audio_class:
-                                        # 保存每个VAD的开始时间，结束时间 - 20240912
-                                        timeline_data.append({
-                                            "start_time_relative": last_vad_beg / 1000,
-                                            "end_time_relative": last_vad_end / 1000
-                                        })
+
+                                    # # Call the asynchronous function to save the file
+                                    # wav_file_path = "./temp_chunk.wav"
+                                    # await async_save_and_infer_emotion(wav_file_path, vad_audio_chunk, 16000)
+
+                                    # Parameters for sliding window
+                                    window_size_seconds = 5  # 5 seconds window size
+                                    stride_seconds = 2.5  # 2.5 seconds stride
+                                    # Convert window size and stride to samples
+                                    window_size_samples = int(window_size_seconds * config.sample_rate)
+                                    stride_samples = int(stride_seconds * config.sample_rate)
+
+                                    # Variable to store the last valid score and sentiment
+                                    last_valid_audio_score = None
+                                    last_valid_audio_class = None
+
+                                    # Iterate over the long vad_audio_chunk with sliding windows
+                                    for start in range(0, len(vad_audio_chunk) - window_size_samples + 1,
+                                                       stride_samples):
+                                        end_window = start + window_size_samples
+                                        chunk = vad_audio_chunk[start:end_window]
+
+                                        # Run audio inference on the chunk
+                                        final_audio_score, final_audio_class = audio_model_inference(chunk)
+
+                                        # Error handling: If the inference result is None, use the last valid score and class
+                                        if final_audio_score is None or final_audio_class is None:
+                                            final_audio_score = last_valid_audio_score if last_valid_audio_score is not None else 0
+                                            final_audio_class = last_valid_audio_class if last_valid_audio_class is not None else "Neutral sentiment"
+                                            logger.warning(
+                                                f"Inference failed for chunk, using last valid score: {final_audio_score}, class: {final_audio_class}")
+                                        else:
+                                            last_valid_audio_score = final_audio_score  # Update last valid score
+                                            last_valid_audio_class = final_audio_class  # Update last valid class
+
+                                        # Calculate relative start and end times for this chunk
+                                        chunk_start_time_relative = last_vad_beg / 1000 + (start / config.sample_rate)
+                                        chunk_end_time_relative = last_vad_beg / 1000 + (end_window / config.sample_rate)
+                                        end_time_offset = (offset / 1000 - len(vad_audio_chunk)/ config.sample_rate +
+                                                           chunk_start_time_relative)
+
+                                        # Append results to timeline and score list
+                                        if start == 0:
+                                            final_score_list.append(final_audio_score)
+                                            end_time_list.append(offset / 1000 - len(vad_audio_chunk)/ config.sample_rate)
                                         final_score_list.append(final_audio_score)
+                                        end_time_list.append(end_time_offset)
+                                        logger.warning(f"[DEBUG] AUDIO Result: {chunk_start_time_relative}, "
+                                                       f"{chunk_end_time_relative}, {end_time_offset} : "
+                                                       f"{final_audio_score} ")
+
+                                        # Create response for this audio chunk
                                         response_audio_data = {
                                             "final_score": final_audio_score,
                                             "final_sentiment_3": final_audio_class
                                         }
-                                        response_audio__data_str = json.dumps(response_audio_data)
+                                        response_audio_data_str = json.dumps(response_audio_data)
+
+                                        # Optionally send back this response via WebSocket or handle further
+                                        logger.warning(f"Audio inference result: {response_audio_data_str}")
                                         response_audio = TranscriptionResponse(
-                                            code=0,
-                                            msg=f"success",
-                                            data=response_audio__data_str,
-                                            type="audio_sentiment",
-                                            timestamp=datetime.now(singapore_tz).isoformat(),
-                                            speaker_label=speaker_label
-                                        )
+                                                    code=0,
+                                                    msg=f"success",
+                                                    data=response_audio_data_str,
+                                                    type="audio_sentiment",
+                                                    timestamp=datetime.now(singapore_tz).isoformat(),
+                                                    speaker_label=speaker_label
+                                                )
                                         await websocket_trans.send_json(response_audio.model_dump())
 
                             audio_vad = audio_vad[end:]  # 已经处理过的片段移除，保留未处理的部分
                             last_vad_beg = last_vad_end = -1  # 重置 VAD 片段标记
 
     except WebSocketDisconnect:
-        logger.info("WebSocket disconnected")
+        logger.warning("WebSocket Transcribe disconnected")
+        logger.warning(f"[END] final_score_list: {final_score_list}")
+        logger.warning(f"[END] end_time_list: {end_time_list}")
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         await websocket_trans.close()
@@ -482,30 +558,23 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                 await websocket_analysis.send_json(response_topic.model_dump())
                 cache_text_client = ""  # reset
     except WebSocketDisconnect:
-        print("WebSocket Analysis disconnected")
+        logger.warning("WebSocket Analysis disconnected")
     except Exception as e:
-        print(f"Error in WebSocket Analysis: {e}")
+        logger.error(f"Unexpected error: {e}")
+        await websocket_analysis.close()
+    finally:
+        # reset list
+        final_score_list.clear()
+        end_time_list.clear()
+        logger.info("Cleaned up resources after WebSocket disconnect")
 
 # 更新折线图
 @app.post("/update-chart/")
 async def update_chart():
     try:
-        if not timeline_data or not final_score_list:  # Check if the lists are empty
+        if not end_time_list or not final_score_list:  # Check if the lists are empty
             return {"end_time": None, "final_score": None}
 
-        accumulate_end_time = 0  # 用于累积的结束时间
-        end_time_list = []  # 存储所有的结束时间
-
-        # 遍历存储 VAD 处理数据的 timeline_data
-        for entry, score in zip(timeline_data, final_score_list):  # 确保 final_score_list 和 timeline_data 对应
-            # 取出 VAD 处理后的音频的结束时间
-            audio_end_time = entry["end_time_relative"]
-
-            # 将相对结束时间叠加到总结束时间
-            accumulate_end_time += audio_end_time - entry.get("start_time_relative", 0)  # 保证只加这段语音的时长
-            # 将累计结束时间加入列表，保留两位小数
-            end_time_list.append(round(accumulate_end_time, 2))
-            # 返回结果作为响应
         response = {
             "end_time": end_time_list,
             "final_score": final_score_list
