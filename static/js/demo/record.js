@@ -164,6 +164,7 @@ function startRecording() {
 
             // 显示转录结果 加上说话者身份
             if (type === 'STT') {
+                startFetchChart = true;
                 if (speaker === speaker_last) {
                     transcriptionResult.innerHTML += ' ' + textData || ' ';
                 } else {
