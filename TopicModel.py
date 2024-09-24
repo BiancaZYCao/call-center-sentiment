@@ -264,7 +264,7 @@ class TopicModel(metaclass=SingletonMeta):
     def getEntityTopic(self, text, n_top_words=10):
         custom_keywords = { "credit card": ["credit card", "card", "reward", "waive", "credit limit", "payment", "annual fee", "interest rate", "cashback",
                                             "reward point", "minimum payment", "late fee", "grace period", "foreign transaction fee", "transaction fee", "penalty",
-                                            "late payment", "minimum fee", "limit", "debt", "owe", "uob", "ocbc", "dbs"],
+                                            "late payment", "minimum fee", "limit", "debt", "owe", "uob", "ocbc", "dbs", "air miles", "air mile", "krisflyer", "redemption"],
                             "property loan": ["mortgage", "principal", "interest rate", "loan tenure", "down payment", "amortization", "equity", "fixed rate",
                                               "floating rate", "refinance", "stamp duty", "valuation", "loan agreement", "agreement", "legal fee", "loan", "tenure",
                                               "property loan", "hdb", "private property", "private", "home loan", "migrate", "cpf", "bank account", "bank loan",
