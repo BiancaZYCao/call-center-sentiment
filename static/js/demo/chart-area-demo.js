@@ -69,6 +69,9 @@ var myLineChart = new Chart(ctx, {  // Create a new line chart
           drawBorder: false  // Do not draw border lines
         },
         ticks: {
+          font: {
+            size: 14 // 修改 x 轴字体大小
+          },
           maxTicksLimit: 10  // Limit the number of ticks on the x-axis
         }
       }],
@@ -77,6 +80,9 @@ var myLineChart = new Chart(ctx, {  // Create a new line chart
           max: 1,  // Maximum value for the y-axis
           min: -1,  // Minimum value for the y-axis
           padding: 10,  // Padding inside the y-axis
+          font: {
+            size: 14 // 修改 y 轴字体大小
+          },
           // Format the y-axis ticks using the number_format function
           callback: function(value, index, values) {
             return number_format(value, 1, '.', ',');
@@ -99,7 +105,8 @@ var myLineChart = new Chart(ctx, {  // Create a new line chart
       bodyFontColor: "#858796",  // Tooltip text color
       titleMarginBottom: 10,  // Margin below the tooltip title
       titleFontColor: '#6e707e',  // Tooltip title text color
-      titleFontSize: 14,  // Tooltip title font size
+      titleFontSize: 17,  // Tooltip title font size
+      bodyFontSize: 16,   // Tooltip body font size
       borderColor: '#dddfeb',  // Tooltip border color
       borderWidth: 1,  // Tooltip border width
       xPadding: 15,  // Tooltip horizontal padding
