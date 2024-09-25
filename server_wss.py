@@ -394,7 +394,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                 "start_time_relative": segment[0] / 1000,
                                 "end_time_relative": segment[1] / 1000
                             }
-                            logger.error(f"vad segment ms coordinates: {[last_vad_beg/1000, last_vad_end/1000]}")
+                            logger.debug(f"vad segment ms coordinates: {[last_vad_beg/1000, last_vad_end/1000]}")
                             last_vad_beg -= offset
                             last_vad_end -= offset
                             offset += last_vad_end
@@ -408,6 +408,78 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                             speaker_label, transcript_result = process_vad_audio(audio_vad[beg:end], sv, lang)  # todo: async
                             # logger.debug(f"[process_vad_audio] {speaker_label}: {transcript_result}")
 
+                            # Parameters for sliding window
+                            window_size_seconds = 5  # 5 seconds window size
+                            stride_seconds = 2.5  # 2.5 seconds stride
+                            # Convert window size and stride to samples
+                            window_size_samples = int(window_size_seconds * config.sample_rate)
+                            stride_samples = int(stride_seconds * config.sample_rate)
+
+                            # Variable to store the last valid score and sentiment
+                            last_valid_audio_score = None
+                            last_valid_audio_class = None
+
+                            # logger.debug(f"VAD Chunk duration: {len(vad_audio_chunk)/16000}")
+                            # Calculate how many inference steps are required
+                            inference_time_required = len(vad_audio_chunk) // (window_size_samples // 2) + 1
+
+                            # Iterate over the long vad_audio_chunk with sliding windows
+                            for i in range(inference_time_required):
+                                # Calculate the start and end indices for each chunk
+                                start = i * (window_size_samples // 2)
+                                end_window = start + window_size_samples
+
+                                # Extract the chunk
+                                chunk = vad_audio_chunk[start:end]
+                                # logger.debug(f"start to process chunk:{start}-{end_window}")
+
+                                # Run audio inference on the chunk
+                                final_audio_score, final_audio_class = audio_model_inference(chunk)
+
+                                # Error handling: If the inference result is None, use the last valid score and class
+                                if final_audio_score is None or final_audio_class is None:
+                                    final_audio_score = last_valid_audio_score if last_valid_audio_score is not None else 0
+                                    final_audio_class = last_valid_audio_class if last_valid_audio_class is not None else "Neutral sentiment"
+                                    logger.warning(
+                                        f"Inference failed for chunk, using last valid score: {final_audio_score}, class: {final_audio_class}")
+                                else:
+                                    last_valid_audio_score = final_audio_score  # Update last valid score
+                                    last_valid_audio_class = final_audio_class  # Update last valid class
+
+                                # Calculate relative start and end times for this chunk
+                                chunk_start_time_relative = last_vad_beg / 1000 + (start / config.sample_rate)
+                                chunk_end_time_relative = last_vad_beg / 1000 + (end_window / config.sample_rate)
+                                end_time_offset = (offset / 1000 - len(vad_audio_chunk) / config.sample_rate +
+                                                   chunk_start_time_relative)
+
+                                # Append results to timeline and score list
+                                if start == 0:
+                                    final_score_list.append(final_audio_score)
+                                    end_time_list.append(offset / 1000 - len(vad_audio_chunk) / config.sample_rate)
+                                final_score_list.append(final_audio_score)
+                                end_time_list.append(end_time_offset)
+                                logger.warning(f"[DEBUG] AUDIO Result: {chunk_start_time_relative}, "
+                                               f"{chunk_end_time_relative}, {end_time_offset} : "
+                                               f"{final_audio_score} ")
+
+                                # Create response for this audio chunk
+                                response_audio_data = {
+                                    "final_score": final_audio_score,
+                                    "final_sentiment_3": final_audio_class
+                                }
+                                response_audio_data_str = json.dumps(response_audio_data)
+
+                                # Optionally send back this response via WebSocket or handle further
+                                logger.warning(f"Audio inference result: {response_audio_data_str}")
+                                response_audio = TranscriptionResponse(
+                                    code=0,
+                                    msg=f"success",
+                                    data=response_audio_data_str,
+                                    type="audio_sentiment",
+                                    timestamp=datetime.now(singapore_tz).isoformat(),
+                                    speaker_label=speaker_label
+                                )
+                                await websocket_trans.send_json(response_audio.model_dump())
 
                             if transcript_result is not None:
                                 result_text = format_str_v3(transcript_result[0]['text'])
@@ -422,9 +494,9 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                 )
                                 await websocket_trans.send_json(response.model_dump())
 
-                                if speaker_label == "Agent":
-                                    end_time_list.append(offset / 1000)
-                                    final_score_list.append(None)
+                                # if speaker_label == "Agent":
+                                #     end_time_list.append(offset / 1000)
+                                #     final_score_list.append(None)
 
                                 if speaker_label == "Client":
                                     # text sentiment - send to queue
@@ -441,70 +513,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                     # wav_file_path = "./temp_chunk.wav"
                                     # await async_save_and_infer_emotion(wav_file_path, vad_audio_chunk, 16000)
 
-                                    # Parameters for sliding window
-                                    window_size_seconds = 5  # 5 seconds window size
-                                    stride_seconds = 2.5  # 2.5 seconds stride
-                                    # Convert window size and stride to samples
-                                    window_size_samples = int(window_size_seconds * config.sample_rate)
-                                    stride_samples = int(stride_seconds * config.sample_rate)
 
-                                    # Variable to store the last valid score and sentiment
-                                    last_valid_audio_score = None
-                                    last_valid_audio_class = None
-
-                                    # Iterate over the long vad_audio_chunk with sliding windows
-                                    for start in range(0, len(vad_audio_chunk) - window_size_samples + 1,
-                                                       stride_samples):
-                                        end_window = start + window_size_samples
-                                        chunk = vad_audio_chunk[start:end_window]
-
-                                        # Run audio inference on the chunk
-                                        final_audio_score, final_audio_class = audio_model_inference(chunk)
-
-                                        # Error handling: If the inference result is None, use the last valid score and class
-                                        if final_audio_score is None or final_audio_class is None:
-                                            final_audio_score = last_valid_audio_score if last_valid_audio_score is not None else 0
-                                            final_audio_class = last_valid_audio_class if last_valid_audio_class is not None else "Neutral sentiment"
-                                            logger.warning(
-                                                f"Inference failed for chunk, using last valid score: {final_audio_score}, class: {final_audio_class}")
-                                        else:
-                                            last_valid_audio_score = final_audio_score  # Update last valid score
-                                            last_valid_audio_class = final_audio_class  # Update last valid class
-
-                                        # Calculate relative start and end times for this chunk
-                                        chunk_start_time_relative = last_vad_beg / 1000 + (start / config.sample_rate)
-                                        chunk_end_time_relative = last_vad_beg / 1000 + (end_window / config.sample_rate)
-                                        end_time_offset = (offset / 1000 - len(vad_audio_chunk)/ config.sample_rate +
-                                                           chunk_start_time_relative)
-
-                                        # Append results to timeline and score list
-                                        if start == 0:
-                                            final_score_list.append(final_audio_score)
-                                            end_time_list.append(offset / 1000 - len(vad_audio_chunk)/ config.sample_rate)
-                                        final_score_list.append(final_audio_score)
-                                        end_time_list.append(end_time_offset)
-                                        logger.warning(f"[DEBUG] AUDIO Result: {chunk_start_time_relative}, "
-                                                       f"{chunk_end_time_relative}, {end_time_offset} : "
-                                                       f"{final_audio_score} ")
-
-                                        # Create response for this audio chunk
-                                        response_audio_data = {
-                                            "final_score": final_audio_score,
-                                            "final_sentiment_3": final_audio_class
-                                        }
-                                        response_audio_data_str = json.dumps(response_audio_data)
-
-                                        # Optionally send back this response via WebSocket or handle further
-                                        logger.warning(f"Audio inference result: {response_audio_data_str}")
-                                        response_audio = TranscriptionResponse(
-                                                    code=0,
-                                                    msg=f"success",
-                                                    data=response_audio_data_str,
-                                                    type="audio_sentiment",
-                                                    timestamp=datetime.now(singapore_tz).isoformat(),
-                                                    speaker_label=speaker_label
-                                                )
-                                        await websocket_trans.send_json(response_audio.model_dump())
 
                             audio_vad = audio_vad[end:]  # 已经处理过的片段移除，保留未处理的部分
                             last_vad_beg = last_vad_end = -1  # 重置 VAD 片段标记
