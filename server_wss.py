@@ -565,6 +565,17 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                 )
                 # Send topic modeling results back to the client
                 await websocket_analysis.send_json(response_topic.model_dump())
+
+                # Perform topic modeling and get questions for each topic
+                topics_and_questions = tm.getTopicsAndQuestions()
+                topics_and_questions_str = json.dumps(topics_and_questions)
+                response_topic_and_questions = AnalysisResponse(
+                    data=topics_and_questions_str,
+                    type="topicsAndQuestions",  # Change type to "topicsAndQuestions"
+                    timestamp=received_at
+                )
+                # Send topics and questions back to the client
+                await websocket_analysis.send_json(response_topic_and_questions.model_dump())
                 cache_text_client = ""  # reset
     except WebSocketDisconnect:
         logger.warning("WebSocket Analysis disconnected")

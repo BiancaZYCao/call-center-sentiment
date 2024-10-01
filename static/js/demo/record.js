@@ -271,6 +271,43 @@ function startListening() {
                 });
             }
         }
+        // Handle topicsAndQuestions response
+        if (resJson.type === "topicsAndQuestions") {
+            var topicsAndQuestions = textData ? JSON.parse(textData) : null;
+            console.debug('topicsAndQuestions received:', topicsAndQuestions);
+
+            if (topicsAndQuestions) {
+                // Clear previous content in the questions container
+                const questionsContainer = document.getElementById("questions-container");
+                questionsContainer.innerHTML = '';
+
+                // Iterate over each topic and its questions
+                Object.keys(topicsAndQuestions).forEach(topic => {
+                    // Create a topic header
+                    const topicHeader = document.createElement('h6');
+                    topicHeader.textContent = topic;
+                    questionsContainer.appendChild(topicHeader);
+
+                    // Create a list for questions under this topic
+                    const questionList = document.createElement('ul');
+
+                    topicsAndQuestions[topic].forEach(question => {
+                        const questionItem = document.createElement('li');
+                        questionItem.textContent = question;
+
+                        // Add a click event to the question item to select it
+                        questionItem.onclick = function () {
+                            addSelectedReply(question);
+                        };
+
+                        questionList.appendChild(questionItem);
+                    });
+
+                    questionsContainer.appendChild(questionList);
+                });
+            }
+        }
+
     };
 
     // 5. Handle WebSocket errors
@@ -283,6 +320,15 @@ function startListening() {
         console.log('WebSocket Analysis connection closed');
     };
 }
+
+// Function to add selected reply to the selected-list
+function addSelectedReply(reply) {
+    const selectedList = document.getElementById("selected-list");
+    const replyItem = document.createElement('li');
+    replyItem.textContent = reply;
+    selectedList.appendChild(replyItem);
+}
+
 
 function stopRecording() {
     console.log('Stop Recording');

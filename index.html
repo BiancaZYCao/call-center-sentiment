@@ -764,14 +764,14 @@
                                             <!-- Tags will be dynamically inserted here -->
                                         </div>
                                     </div>
-                                    <!--model predicate display-->
 
+                                    <!--model predicate display-->
                                     <hr/>
-                                    Text Predicted Sentiment:
+                                    <h6 style="font-size: 20px; font-weight: bold;">Text Predicted Sentiment:</h6>
                                     <p id="sentimentResult" style="font-size: 24px;"></p>
 
                                     <hr/>
-                                    Audio Predicted Response Result:
+                                    <h6 style="font-size: 20px; font-weight: bold;">Audio Predicted Response Result:</h6>
                                     <p id="responseResult" style="font-size: 24px;"></p>
 
 
@@ -785,28 +785,52 @@
 
                         <div class="col-lg-6 mb-4">
 
+                            <!--  transcriptionResult -->
+<!--                            <div class="card shadow mb-4">-->
+<!--                                <div class="card-header py-3">-->
+<!--                                    <h6 class="m-0 font-weight-bold text-primary">Transcription result</h6>-->
+<!--                                </div>-->
+<!--                                <div class="card-body">-->
+<!--                                    <div>-->
+<!--                                       <hr/>-->
+<!--                                    <p id="transcriptionResult"></p>-->
+<!--                                    </div>-->
+<!--                                </div>-->
+<!--                            </div>-->
+                            <!-- end of transcriptionResult-->
+
+
                             <!-- Replay Hint -->
                             <div class="card shadow mb-4">
                                 <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold text-primary">Transcription result</h6>
+                                    <h6 class="m-0 font-weight-bold text-primary">Reply Hint</h6>
                                 </div>
                                 <div class="card-body">
-                                    <div>
-                                       <hr/>
-                                    <p id="transcriptionResult"></p>
+                                    <div class="text-center">
+                                        <img class="img-fluid px-3 px-sm-4 mt-3 mb-4" style="width: 25rem;"
+                                             src="static/img/undraw_posting_photo.svg" alt="...">
                                     </div>
 
-<!--                                    end of reply hint-->
-<!--                                    <p>Add some quality, svg illustrations to your project courtesy of <a-->
-<!--                                            target="_blank" rel="nofollow" href="https://undraw.co/">unDraw</a>, a-->
-<!--                                        constantly updated collection of beautiful svg images that you can use-->
-<!--                                        completely free and without attribution!</p>-->
-<!--                                    <a target="_blank" rel="nofollow" href="https://undraw.co/">Browse Illustrations on-->
-<!--                                        unDraw &rarr;</a>-->
+                                    <!-- Question Display Section -->
+                                    <div class="reply-hints">
+                                        <h6 style="font-size: 20px; font-weight: bold;">Questions:</h6>
+                                        <div id="questions-container">
+                                            <!-- Questions for each topic will be dynamically inserted here -->
+                                        </div>
+
+                                        <!-- User Selected Replies -->
+                                        <div class="selected-replies mt-4">
+                                            <h6 style="font-size: 20px; font-weight: bold;">Selected Replies:</h6>
+                                            <ul id="selected-list">
+                                                <!-- Selected replies will appear here -->
+                                            </ul>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+                            <!--End of Replay Hint -->
 
-<!--                            &lt;!&ndash; Approach &ndash;&gt;-->
+
 <!--                            <div class="card shadow mb-4">-->
 <!--                                <div class="card-header py-3">-->
 <!--                                    <h6 class="m-0 font-weight-bold text-primary">Development Approach</h6>-->
