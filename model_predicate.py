@@ -2,6 +2,7 @@
 
 
 import os
+import time
 import warnings
 
 import h5py
@@ -252,13 +253,14 @@ def preprocess_signal(x_input):
 
 def audio_model_inference(x_input: np.ndarray):
     try:
+        start = time.time()
         x = preprocess_signal(x_input)
-        # TODO 5 second windows
         feature_test_instance = calc_feature_all_from_binary(x)
         test_instance = [feature_test_instance[key] for key in selected_feature_name if key in feature_test_instance]
         if not feature_test_instance:
             print("[ATTENTION] - feature_test_instance is none:")
             return None, None
+        print("[TIME] - takes {:.2f} seconds".format(time.time() - start))
         # last semester score
         final_score = calculate_final_score(test_instance)
         # this semester score - replace [-1,0,1] with scaled max_prob * [-1,0,1]
@@ -267,10 +269,11 @@ def audio_model_inference(x_input: np.ndarray):
         # if sentiment_class_3_new is list，then pick the first one
         if isinstance(sentiment_class_3_new, list):
             sentiment_class_3_new = sentiment_class_3_new[0]
-
+        print("[TIME] - takes {:.2f} seconds".format(time.time() - start))
         combine_score = calculate_combine_score(test_instance, final_score, sentiment_3_new_score)
 
         sentiment_category = determine_sentiment_category(sentiment_class_3_new)
+        print("[TIME] - takes {:.2f} seconds".format(time.time() - start))
         if isinstance(combine_score, (int, float)):  # Check if it's an int or float
             return float(combine_score), sentiment_category
         else:

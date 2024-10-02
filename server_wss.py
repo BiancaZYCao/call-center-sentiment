@@ -1,5 +1,5 @@
 from datetime import datetime
-import json
+import json, time
 import logging
 # Set up logging
 logging.basicConfig(level=logging.WARNING)
@@ -197,7 +197,7 @@ model = AutoModel(
     model="fsmn-vad",
     model_revision="v2.0.4",
     disable_pbar=True,  # 禁用进度条显示，通常用于防止在非交互式环境中出现多余的输出。
-    max_end_silence_time=900,  # 设置最大结束静音时间（单位：毫秒）。如果在检测过程中静音持续超过这个时间，模型可能会认为语音段结束。
+    max_end_silence_time=200,  # 设置最大结束静音时间（单位：毫秒）。如果在检测过程中静音持续超过这个时间，模型可能会认为语音段结束。
     speech_noise_thres=0.8,  # 语音与噪声之间的阈值，用于区分语音和噪声。值越大，模型越倾向于认为音频是噪声。
     disable_update=True  # 禁用模型的自动更新功能，防止在处理过程中更新模型参数。
 )
@@ -395,6 +395,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                 "end_time_relative": segment[1] / 1000
                             }
                             logger.debug(f"vad segment ms coordinates: {[last_vad_beg/1000, last_vad_end/1000]}")
+                            start = time.time()
                             last_vad_beg -= offset
                             last_vad_end -= offset
                             offset += last_vad_end
@@ -406,6 +407,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
 
                             # 调用process_vad_audio()函数对这些片段进一步处理 --- old
                             speaker_label, transcript_result = process_vad_audio(audio_vad[beg:end], sv, lang)  # todo: async
+                            print("[TIME] - STT takes {:.2f} seconds".format(time.time() - start))
                             # logger.debug(f"[process_vad_audio] {speaker_label}: {transcript_result}")
 
                             # Parameters for sliding window
