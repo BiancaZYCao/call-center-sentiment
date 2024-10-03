@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Center Charts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .image-container {
+            display: flex;
+            flex-wrap: wrap; /* Allow images to wrap */
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .image-container div {
+            margin: 10px;
+        }
+        .image-container img {
+            width: 100%;  /* Ensure images take up all available width */
+            max-width: 700px;  /* Maximum width to ensure images don't stretch too much */            
+            height: auto;  /* Maintain aspect ratio */
+            border: 2px solid #000;
+        }
+        @media (max-width: 1600px) {
+            .image-container img {
+                max-width: 700px;  /* Adjust image width for smaller screens */
+            }
+        }
+        @media (max-width: 1000px) {
+            .image-container img {
+                max-width: 300px;  /* Further adjust for very narrow screens */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Call Center Charts</h1>
+
+    <div class="image-container">
+        <div>
+            <h3>Client Sentiment Distribution by Dialog Type</h3>
+            <img src="img/sentiment_dist_dialog_type.jpg" alt="Sentiment Distribution by Dialog Type">
+        </div>
+        <div>
+            <h3>Top 10 Client Intentions</h3>
+            <img src="img/client_intentions_top_10.jpg" alt="Client Intentions">
+        </div>
+        <div>
+            <h3>Client Sentiment Distribution</h3>
+            <img src="img/sentiment_dist.jpg" alt="Sentiment Distribution">
+        </div>
+    </div>
+
+</body>
+</html>
