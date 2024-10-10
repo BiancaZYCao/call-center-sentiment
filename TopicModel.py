@@ -83,8 +83,6 @@ class TopicModel(metaclass=SingletonMeta):
         self.topicsAndQuestions = {}
 
     def initOpenAI(self):
-        #os.environ['OPENAI_API_KEY'] = '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'
-        #os.environ['OPENAI_API_KEY'] = 'sk-proj-NNn2ogDOcAahK91dPqzAT3BlbkFJoUPvh8YGkkCkzlOtx4sL'
         os.environ['OPENAI_API_KEY'] = "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"
         self.model_id = "ft:gpt-4o-mini-2024-07-18:personal::A0l6mkLn"
 

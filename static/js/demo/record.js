@@ -10,10 +10,6 @@ var singlishResult = document.getElementById('SinglishResult');
 
 
 
-var pendingTextData = '';    // 存储需要合并的短 textData
-var minWordCount = 7;        // 定义最少的词数
-
-
 //added at 20240909
 var startTime = null;        // 记录录音的开始时间
 var timeStamps = [];         // 存储时间戳
@@ -90,10 +86,10 @@ function updateGauge(finalScore, finalSentiment) {
 
 // recordButton绑定点击事件处理函数
 recordButton.onclick = function () {
-    if (!isRecording) {  //麦克风当前没有在录音，应该开始录音
+    if (!isRecording) {
         startListening();
         startRecording();
-    } else {  //麦克风已经在录音，应该停止录音
+    } else {
         stopRecording();
     }
 };
@@ -107,53 +103,51 @@ function startRecording() {
     // Construct the query parameters
     var queryParams = [];
     if (lang) {
-        queryParams.push(`lang=${lang}`);  // 如果指定了语言，添加到查询参数
+        queryParams.push(`lang=${lang}`);
     }
     if (sv) {
-        queryParams.push('sv=1');  // 如果启用了说话人验证，添加到查询参数
+        queryParams.push('sv=1'); //default Ture
     }
-    var queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';   // 拼接查询字符串
+    var queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
 
-    //1. 建立 WebSocket 连接
-    ws = new WebSocket(`ws://127.0.0.1:8000/ws/transcribe${queryString}`);  // 创建WebSocket连接，使用查询字符串
-    ws.binaryType = 'arraybuffer';   // 设置WebSocket传输的二进制数据类型
-    //2. 处理连接成功的事件
+    //1. build WebSocket connection
+    ws = new WebSocket(`ws://127.0.0.1:8000/ws/transcribe${queryString}`);
+    ws.binaryType = 'arraybuffer';
+    //2. event on channel open
     ws.onopen = function (event) {
         console.log('WebSocket connection established');
-        //2.a 启动录音
-        record.start();  // record是一个全局变量，用于存储录音实例
-        // setInterval()是一个浏览器和 Node.js 环境中常用的定时器函数，它会在指定的时间间隔内反复执行某个代码块
+        //2.a start recording
+        record.start();
         timeInte = setInterval(function () {
-            if (ws.readyState === 1) {  // 如果WebSocket连接是打开的状态
-                var audioBlob = record.getBlob();   // 获取录音的Blob对象(JavaScript 中的一种对象，用于存储二进制数据。它可以存储各种类型的文件数据，比如图片、音频、视频)
+            if (ws.readyState === 1) {
+                var audioBlob = record.getBlob();
                 // console.log('Blob size: ', audioBlob.size);
 
                 // Read the Blob content for debugging
                 var reader = new FileReader();
                 reader.onloadend = function () {
                     // console.log('Blob content: ', new Uint8Array(reader.result));
-                    //2.b 发送音频数据到服务器
                     ws.send(audioBlob);
                     console.log('Sending audio data');
-                    record.clear(); // 清除录音缓冲区
+                    record.clear();
                 };
-                reader.readAsArrayBuffer(audioBlob); // 将Blob对象读取为ArrayBuffer
+                reader.readAsArrayBuffer(audioBlob);
             }
-        }, 500);  // 每500毫秒发送一次音频数据
+        }, 500);
     };
     //3. 处理服务器发送的消息
-    // ws.onmessage:当websocket server接收到消息触发，去处理从服务器返回的数据，并更新用户界面或执行其他任务
+    // ws.onmessage: update UI text chart scores when msg received.
     ws.onmessage = function (evt) {
         console.log('Received message: ' + evt.data);
         try {
-            var resJson = JSON.parse(evt.data);  // 尝试解析JSON数据
-            var textData = resJson.data;         // 提取转录的文本数据
+            var resJson = JSON.parse(evt.data);
+            var textData = resJson.data;
             var speaker = resJson.speaker_label || 'unknown speaker'; // Handle missing speaker_label
             var type = resJson.type || 'unknown type';
             var timestamp = resJson.timestamp || 'no timestamp';
 
 
-            // 显示情感分析结果 音频情感分析处理 - new model- 20240915
+            // Audio Sentiment Result - 20240915
             if (type === 'audio_sentiment') {
                 var audioData = JSON.parse(textData);  // Parse the JSON string in 'data'
                 var finalScore = Number(audioData.final_score);  // Cast final_score to a number
@@ -162,9 +156,10 @@ function startRecording() {
                 startFetchChart = true;
             }
 
-            // 显示转录结果 加上说话者身份
+            // display text content
             if (type === 'STT') {
                 startFetchChart = true;
+                // transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
                 if (speaker === speaker_last) {
                     transcriptionResult.innerHTML += ' ' + textData || ' ';
                 } else {
@@ -174,7 +169,7 @@ function startRecording() {
             }
         } catch (err) {
             console.error('Failed to parse websocket message:', err);
-            transcriptionResult.textContent += "\n" + evt.data;  // 如果解析失败，直接显示原始数据
+            transcriptionResult.textContent += "\n" + evt.data;
         }
 
     };
@@ -208,7 +203,7 @@ function startListening() {
                 // Fetch chart updates every 1 second
                 // Fetch data from the server and update chart
                 fetch('http://127.0.0.1:8000/update-chart/', {
-                    method: 'POST',  // Use POST method to send the request
+                    method: 'GET',  // Use POST method to send the request
                     headers: {
                         'Content-Type': 'application/json'  // Set the request content type to JSON
                     }
@@ -272,41 +267,41 @@ function startListening() {
             }
         }
         // Handle topicsAndQuestions response
-        if (resJson.type === "topicsAndQuestions") {
-            var topicsAndQuestions = textData ? JSON.parse(textData) : null;
-            console.debug('topicsAndQuestions received:', topicsAndQuestions);
+        // if (resJson.type === "topicsAndQuestions") {
+        //     var topicsAndQuestions = textData ? JSON.parse(textData) : null;
+        //     console.debug('topicsAndQuestions received:', topicsAndQuestions);
 
-            if (topicsAndQuestions) {
-                // Clear previous content in the questions container
-                const questionsContainer = document.getElementById("questions-container");
-                questionsContainer.innerHTML = '';
+        //     if (topicsAndQuestions) {
+        //         // Clear previous content in the questions container
+        //         const questionsContainer = document.getElementById("questions-container");
+        //         questionsContainer.innerHTML = '';
 
-                // Iterate over each topic and its questions
-                Object.keys(topicsAndQuestions).forEach(topic => {
-                    // Create a topic header
-                    const topicHeader = document.createElement('h6');
-                    topicHeader.textContent = topic;
-                    questionsContainer.appendChild(topicHeader);
+        //         // Iterate over each topic and its questions
+        //         Object.keys(topicsAndQuestions).forEach(topic => {
+        //             // Create a topic header
+        //             const topicHeader = document.createElement('h6');
+        //             topicHeader.textContent = topic;
+        //             questionsContainer.appendChild(topicHeader);
 
-                    // Create a list for questions under this topic
-                    const questionList = document.createElement('ul');
+        //             // Create a list for questions under this topic
+        //             const questionList = document.createElement('ul');
 
-                    topicsAndQuestions[topic].forEach(question => {
-                        const questionItem = document.createElement('li');
-                        questionItem.textContent = question;
+        //             topicsAndQuestions[topic].forEach(question => {
+        //                 const questionItem = document.createElement('li');
+        //                 questionItem.textContent = question;
 
-                        // Add a click event to the question item to select it
-                        questionItem.onclick = function () {
-                            addSelectedReply(question);
-                        };
+        //                 // Add a click event to the question item to select it
+        //                 questionItem.onclick = function () {
+        //                     addSelectedReply(question);
+        //                 };
 
-                        questionList.appendChild(questionItem);
-                    });
+        //                 questionList.appendChild(questionItem);
+        //             });
 
-                    questionsContainer.appendChild(questionList);
-                });
-            }
-        }
+        //             questionsContainer.appendChild(questionList);
+        //         });
+        //     }
+        // }
 
     };
 
@@ -361,7 +356,7 @@ if (!navigator.getUserMedia) {
     navigator.getUserMedia(
         {audio: true},
         function (mediaStream) {
-            init(new Recorder(mediaStream));    // 成功获取音频输入时，初始化Recorder对象
+            init(new Recorder(mediaStream));
         },
         function (error) {
             console.log(error);
