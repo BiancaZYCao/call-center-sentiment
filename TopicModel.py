@@ -175,7 +175,7 @@ class TopicModel(metaclass=SingletonMeta):
                              "premium": 2, "private": 2, "region": 2, "luggage": 2, "baggage": 2, "delay": 2, "flight": 3, "claim": 3, "process": 2, "sick": 2,
                              "duration": 2, "policy": 2, "cancel": 2, "buy": 2, "process": 2, "transfer": 2, "purchase": 2, "geographical": 2, "covid-19": 3, "group": 1, "personal": 1},
                 "bigrams": {"travel insurance": 4, "insurance coverage": 4, "insurance premium": 4, "medical expense": 3, "coverage amount": 2, "regional coverage": 2, "flight delay": 2, "flight cancel": 3,
-                            "flight postpone": 3, "luggage delay": 4, "baggage delay": 4, "luggage loss": 4, "baggage loss": 4, "personal belonging": 2, "trip cancel": 3, "personal accident": 3,
+                            "flight postpone": 3, "luggage delay": 4, "baggage delay": 4, "luggage loss": 4, "lost luggage": 4, "baggage loss": 4, "lost baggage": 4, "personal belonging": 2, "trip cancel": 3, "personal accident": 3,
                             "policy number": 2, "car rental": 2, "claim process": 2, "geographical coverage": 3, "trip cancellation": 2, "flight cancellation": 3, "emergency evacuation": 3},
                 "trigrams": {"apply travel insurance": 5, "how to claim": 3, "travel insurance enquiry": 5, "enquire travel insurance": 4, "buy travel insurance": 4, "cancel travel insurance": 4,
                              "purchase travel insurance": 3},
