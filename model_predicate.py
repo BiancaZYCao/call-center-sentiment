@@ -2,6 +2,7 @@
 
 
 import os
+import time
 import warnings
 
 import h5py
@@ -121,14 +122,12 @@ def calc_feature_all(filename):
                                                                                  n_mels=32, fmax=8000))
     feature_zcr_stats = get_stats_from_feature(librosa.feature.zero_crossing_rate(y=X))
     feature_rms_stats = get_stats_from_feature(librosa.feature.rms(y=X))
-    # 将所有特征连接成一个数组
     features = np.concatenate((feature_mfccs_60_stats,
                                feature_mel_32_stats,
                                feature_zcr_stats,
                                feature_rms_stats
                                ), axis=0)
-    # 定义特征列名
-    # updated at 20240916
+    # Define Feature Naming updated at 20240916
     prefixes = {'mfcc': 20, 'mel32': 32, 'zcr': 1, 'rms': 1}
     column_names = []
     for prefix, num_features in prefixes.items():
@@ -173,14 +172,11 @@ def calc_feature_all_from_binary(x: np.ndarray):
                                                                                  n_mels=32, fmax=8000))
     feature_zcr_stats = get_stats_from_feature(librosa.feature.zero_crossing_rate(y=x))
     feature_rms_stats = get_stats_from_feature(librosa.feature.rms(y=x))
-    # 将所有特征连接成一个数组
     features = np.concatenate((feature_mfccs_20_stats,
                                feature_mel_32_stats,
                                feature_zcr_stats,
                                feature_rms_stats
                                ), axis=0)
-    # 定义特征列名
-    # updated at 20240916
     prefixes = {'mfcc': 20, 'mel32': 32, 'zcr': 1, 'rms': 1}
     column_names = []
     for prefix, num_features in prefixes.items():
@@ -220,15 +216,15 @@ def preprocess_signal(x_input):
     max_duration_sec = 5  # Max duration in seconds
     max_duration_samples = int(max_duration_sec * sample_rate)  # Convert to samples
 
-    # 检查音频是否为空
+    # check input if is empty
     if len(x_input) == 0:
         print(f"Skipping because input is empty.")
         return
 
-    # 获取音频的实际时长 to be removed - only debug used
+    # get duration
     audio_duration = librosa.get_duration(y=x_input, sr=sample_rate)
     print(f"Audio duration for : {audio_duration:.2f} seconds")
-    # 丢弃小于 0.128 秒的音频文件
+    # dump if <0.128 too short
     if audio_duration < 0.128:
         print(f"Skipping because input is too short (<0.128s).")
         return
@@ -252,14 +248,15 @@ def preprocess_signal(x_input):
 
 def audio_model_inference(x_input: np.ndarray):
     try:
+        start = time.time()
         x = preprocess_signal(x_input)
-        # TODO 5 second windows
         feature_test_instance = calc_feature_all_from_binary(x)
         test_instance = [feature_test_instance[key] for key in selected_feature_name if key in feature_test_instance]
         if not feature_test_instance:
             print("[ATTENTION] - feature_test_instance is none:")
             return None, None
-        # last semester score
+        print("[TIME] - Feature Extraction takes {:.2f} seconds".format(time.time() - start))
+        # Phase 1
         final_score = calculate_final_score(test_instance)
         # this semester score - replace [-1,0,1] with scaled max_prob * [-1,0,1]
         sentiment_class_3_new, sentiment_3_new_score = CNN_Model_Predication_New(test_instance)
@@ -267,10 +264,11 @@ def audio_model_inference(x_input: np.ndarray):
         # if sentiment_class_3_new is list，then pick the first one
         if isinstance(sentiment_class_3_new, list):
             sentiment_class_3_new = sentiment_class_3_new[0]
-
+        print("[TIME] - Audio CNN takes {:.2f} seconds".format(time.time() - start))
         combine_score = calculate_combine_score(test_instance, final_score, sentiment_3_new_score)
 
         sentiment_category = determine_sentiment_category(sentiment_class_3_new)
+        # print("[TIME] - takes {:.2f} seconds".format(time.time() - start))
         if isinstance(combine_score, (int, float)):  # Check if it's an int or float
             return float(combine_score), sentiment_category
         else:
@@ -325,7 +323,7 @@ def Boosting_Model_Predication_New(test_instance):
 
 #last semester
 def CNN_Model_Predication(test_instance):
-    model = EMO_CNN_MODEL #load_model("./models/T2-0329-aug-VAL-R10-6042.h5", compile=False)
+    model = EMO_CNN_MODEL
     X_test = test_instance
     X_test_cnn = np.expand_dims(X_test, axis=0).astype(np.float32)
 
@@ -335,7 +333,7 @@ def CNN_Model_Predication(test_instance):
 
 # CNN model prediction  ---this semester
 def CNN_Model_Predication_New(test_instance):
-    model = NCS_SEN_CNN_MODEL  # load_model("./models/NCS_SEN_CNN_T2_S1S3S2Aa_0916-B-7805.h5", compile=False)
+    model = NCS_SEN_CNN_MODEL
     X_test = test_instance
     X_test_cnn = np.expand_dims(X_test, axis=0).astype(np.float32)
 
@@ -489,37 +487,6 @@ def retrieve_probability(test_instance):
     return probability_dict
 
 
-"""
-###  MAIN
-### Single wav file predication
-### need uncomment code below,需要把上面循环的代码注释掉
-"""
-
-#
-# from tensorflow.keras.models import load_model
-# import numpy as np
-
-
-# Main execution flow
-# if __name__ == "__main__":
-#     wav_file_path = "./test_files/app_0016_0001_phnd_cc-hot_190.91_195.68.wav"
-#     feature_test_instance = calc_feature_all(wav_file_path)
-#     test_instance = [feature_test_instance[key] for key in selected_feature_name if key in feature_test_instance]
-#
-#     final_score= calculate_final_score(test_instance)
-#
-#     sentiment_class_3_new= CNN_Model_Predication_New(test_instance)
-#
-#     score=calculate_combine_score(test_instance,final_score,final_sentiment_3_new)
-
-
-    # test this semester pkl
-    # result=Boosting_Model_Predication(test_instance)
-    # print(result)
-
-    # test CNN model
-    # sentiment_class_3_new = CNN_Model_Predication_New(test_instance)
-    # sentiment_category = determine_sentiment_category(sentiment_class_3_new)
 
 
 
