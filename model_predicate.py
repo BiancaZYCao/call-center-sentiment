@@ -257,7 +257,7 @@ def audio_model_inference(x_input: np.ndarray):
             return None, None
         print("[TIME] - Feature Extraction takes {:.2f} seconds".format(time.time() - start))
         # Phase 1
-        final_score = calculate_final_score(test_instance)
+        # final_score = calculate_final_score(test_instance)
         # this semester score - replace [-1,0,1] with scaled max_prob * [-1,0,1]
         sentiment_class_3_new, sentiment_3_new_score = CNN_Model_Predication_New(test_instance)
 
@@ -265,9 +265,9 @@ def audio_model_inference(x_input: np.ndarray):
         if isinstance(sentiment_class_3_new, list):
             sentiment_class_3_new = sentiment_class_3_new[0]
         print("[TIME] - Audio CNN takes {:.2f} seconds".format(time.time() - start))
-        combine_score = calculate_combine_score(test_instance, final_score, sentiment_3_new_score)
+        combine_score = sentiment_3_new_score
 
-        sentiment_category = determine_sentiment_category(sentiment_class_3_new)
+        sentiment_category = determine_sentiment_category(combine_score)
         # print("[TIME] - takes {:.2f} seconds".format(time.time() - start))
         if isinstance(combine_score, (int, float)):  # Check if it's an int or float
             return float(combine_score), sentiment_category

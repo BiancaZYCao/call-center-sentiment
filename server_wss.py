@@ -578,10 +578,12 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                 )
                 await websocket_analysis.send_json(response_sentiment.model_dump())
                 adjusted_audio_scores = adjust_audio_scores(audio_score_list, text_sentiment_result)
-                print(f"Adjusted Audio Scores: {adjusted_audio_scores}")
-                async with lock:
-                    final_score_list = update_final_scores(final_score_list, end_time_list,
-                                                           timeline_data_list, adjusted_audio_scores, )
+                print(f"Adjusted Audio Scores: {adjusted_audio_scores} for {audio_score_list} "
+                      f"with {text_sentiment_result} at {timeline_data_list}")
+                if adjusted_audio_scores != audio_score_list:
+                    async with lock:
+                        final_score_list = update_final_scores(final_score_list, end_time_list,
+                                                               timeline_data_list, adjusted_audio_scores, )
 
                 # Perform topic modeling as well
                 topic_results = tm.getTopics(cache_text_client)
