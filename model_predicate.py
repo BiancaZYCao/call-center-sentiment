@@ -7,6 +7,7 @@ import warnings
 
 import h5py
 import pandas as pd
+import pickle
 
 print(h5py.__version__)
 
@@ -31,7 +32,7 @@ from tensorflow.keras.models import load_model
 df_joint_train_aug  = pd.read_csv('feature_name_load.csv', low_memory=False)
 feature_column_names = [i for i in df_joint_train_aug.columns \
                         if i not in ['file_path','renamed_file_path','split','sentiment_value','emotional_category']]
-#
+
 def generate_selected_features_by_type(feature_column_names, input, stats, number=1):
     selected_result = []
     for name in feature_column_names:
@@ -73,15 +74,41 @@ len(selected_feature_name)
 
 print(selected_feature_name)
 
-"""### TODO Load Model """
-NCS_SEN_CNN_MODEL = load_model("./models/NCS_SEN_CNN_T2_S1S3S2Aa_0916-B-7805.h5", compile=False)
-EMO_CNN_MODEL = load_model("./models/T2-0329-aug-VAL-R10-6042.h5", compile=False)
+"""### Load Model """
+model_file_dir='./models'
+NCS_SEN_CNN_MODEL = load_model("./models/NCS_SEN_CNN_T2_S1S3S2Aa_1008-BG6-7907.h5", compile=False)
 NCA_LAN_MLP_MODEL = load_model("./models/NCS_LAN_MLP_V2_0916-A2-9722.h5", compile=False)
 
+def load_pickle_model(model_file_dir):
+    """ load pickle model from directory: HistGradBoost, Random Forest etc. """
+    if not os.path.exists(model_file_dir):
+        raise FileNotFoundError(f"Model file not found at: {model_file_dir}")
+    try:
+        with open(model_file_dir, 'rb') as file:
+            return pickle.load(file)
+    except Exception as e:
+        raise Exception(f"Error loading model from file: {model_file_dir}. Error: {e}")
+
+
+# HGB_CLS_MODEL = load_pickle_model(f"{model_file_dir}/HistGradientBoostingClassifier_model_3cls_128feat_75acc.pkl")
+RF_CLS_MODEL = load_pickle_model(f"{model_file_dir}/RandomForestClassifier_model_3cls_128feat_74acc.pkl")
+LGBM_CLS_MODEL = load_pickle_model(f"{model_file_dir}/LGBMClassifier_model_3cls_128feat_82acc.pkl")
+
+def pickle_model_predict(model_cls, test_instance):
+    cls_sign_map = {'neutral': 0, 'positive': 1, 'negative': -1}
+    try:
+        instance_input = np.array(test_instance).reshape(1, -1)
+        pred_cls = model_cls.predict(instance_input)[0]
+        predictions_proba = model_cls.predict_proba(instance_input)
+        max_prob = np.round(predictions_proba.max(axis=1), 4)[0]
+        print("[pickle CLS MODEL]: ", pred_cls)
+        pred_score = max_prob * cls_sign_map[pred_cls]
+        return pred_cls, pred_score
+    except Exception as e:
+        raise Exception(f"Error during model prediction: {e}")
+
+
 # region load Data
-"""### Load Data - test input from wav file"""
-
-
 def get_stats_from_feature(feature_input):
     feature_mean, feature_median = np.mean(feature_input.T, axis=0), np.median(feature_input.T, axis=0)
     feature_std = np.std(feature_input.T, axis=0)
@@ -90,6 +117,7 @@ def get_stats_from_feature(feature_input):
 
 
 def calc_feature_all(filename):
+    """ only for testing function """
     sample_rate_set = 16000
     X_full, sample_rate = librosa.load(filename, sr=sample_rate_set)
 
@@ -246,6 +274,9 @@ def preprocess_signal(x_input):
 
     return x
 
+# endregion
+
+
 def audio_model_inference(x_input: np.ndarray):
     try:
         start = time.time()
@@ -259,14 +290,16 @@ def audio_model_inference(x_input: np.ndarray):
         # Phase 1
         # final_score = calculate_final_score(test_instance)
         # this semester score - replace [-1,0,1] with scaled max_prob * [-1,0,1]
-        sentiment_class_3_new, sentiment_3_new_score = CNN_Model_Predication_New(test_instance)
-
-        # if sentiment_class_3_new is list，then pick the first one
-        if isinstance(sentiment_class_3_new, list):
-            sentiment_class_3_new = sentiment_class_3_new[0]
-        print("[TIME] - Audio CNN takes {:.2f} seconds".format(time.time() - start))
-        combine_score = sentiment_3_new_score
-
+        sentiment_class_CNN, sentiment_score_CNN = CNN_Model_Predication_New(test_instance)
+        print("CNN done; ", end='')
+        sentiment_class_RF, sentiment_score_RF = pickle_model_predict(RF_CLS_MODEL,test_instance)
+        print("RF done; ", end='')
+        sentiment_class_LGBM, sentiment_score_LGBM = pickle_model_predict(LGBM_CLS_MODEL, test_instance)
+        print("[SCORE] CNN {:.2f}   RF {:.2f}   LGBM {:.2f}".format(
+            sentiment_score_CNN, sentiment_score_RF, sentiment_score_LGBM ))
+        print("[TIME] - Audio models takes {:.2f} seconds".format(time.time() - start))
+        combine_score = (sentiment_score_CNN + sentiment_score_RF + sentiment_score_LGBM)/3
+        print("[SCORE] final ".format(combine_score))
         sentiment_category = determine_sentiment_category(combine_score)
         # print("[TIME] - takes {:.2f} seconds".format(time.time() - start))
         if isinstance(combine_score, (int, float)):  # Check if it's an int or float
@@ -277,61 +310,8 @@ def audio_model_inference(x_input: np.ndarray):
         print(f"[ERROR] Unexpected error: {e} at audio_model_inference()")
         return None, None
 
-"""## Boosting Model Predication"""
-
-model_file_dir='./models'
-
-def Boosting_Model_Predication(test_instance):
-    pickle_file_path = f"{model_file_dir}/HistGradientBoostingClassifier_model_8cls_128feat_70acc.pkl"
-    if not os.path.exists(pickle_file_path):
-        raise FileNotFoundError(f"Model file not found at: {pickle_file_path}")
-
-    try:
-        with open(pickle_file_path, 'rb') as file:
-            gb_fast_classifier = pickle.load(file)
-    except Exception as e:
-        raise Exception(f"Error loading model from file: {pickle_file_path}. Error: {e}")
-
-    try:
-        predication = gb_fast_classifier.predict(np.array(test_instance).reshape(1, -1))
-        # print(predication)
-        return predication
-    except Exception as e:
-        raise Exception(f"Error during model prediction: {e}")
-
-def Boosting_Model_Predication_New(test_instance):
-    pickle_file_path = f"{model_file_dir}/DecisionTree_rank_2_accuracy55_20240915_160915.pkl"
-    if not os.path.exists(pickle_file_path):
-        raise FileNotFoundError(f"Model file not found at: {pickle_file_path}")
-
-    try:
-        with open(pickle_file_path, 'rb') as file:
-            gb_fast_classifier = pickle.load(file)
-    except Exception as e:
-        raise Exception(f"Error loading model from file: {pickle_file_path}. Error: {e}")
-
-    try:
-        predication = gb_fast_classifier.predict(np.array(test_instance).reshape(1, -1))
-        print(predication)
-        return predication
-    except Exception as e:
-        raise Exception(f"Error during model prediction: {e}")
-
 
 """## CNN Model Predication"""
-
-
-#last semester
-def CNN_Model_Predication(test_instance):
-    model = EMO_CNN_MODEL
-    X_test = test_instance
-    X_test_cnn = np.expand_dims(X_test, axis=0).astype(np.float32)
-
-    y_pred = np.argmax(model.predict(X_test_cnn, verbose=0), axis=-1)
-    print("CNN Model Predication:",y_pred)
-    return y_pred
-
-# CNN model prediction  ---this semester
 def CNN_Model_Predication_New(test_instance):
     model = NCS_SEN_CNN_MODEL
     X_test = test_instance
@@ -353,58 +333,8 @@ def CNN_Model_Predication_New(test_instance):
     # print("this semester CNN Model output:", sentiment_class_3_new)
     return sentiment_class_3_new, round(np.max(y_pred_probs) * sentiment_class_3_new, 4)
 
-"""## singlish_model_inference"""
-def Singlish_Model_Predication(test_instance):
-    model = NCA_LAN_MLP_MODEL # load_model("./models/NCS_LAN_MLP_V2_0916-A2-9722.h5", compile=False)
-    X_test = test_instance
-    X_test_cnn = np.expand_dims(X_test, axis=0).astype(np.float32)
-
-    y_pred = np.argmax(model.predict(X_test_cnn, verbose=0), axis=-1)
-    print("Singlish Model Predication:",y_pred)
-    return y_pred
-
-
-"""## Random Forest Predication
-## Return max_prob
-"""
-
-import pickle
-import numpy as np
-
-
-def retrieve_max_prob_random_forest(test_instance):
-    # Load the Random Forest model
-    with open(f"{model_file_dir}/HistGradientBoostingClassifier_model_8cls_128feat_70acc.pkl", 'rb') as file:
-        rf_classifier = pickle.load(file)
-
-    # Make predictions on the test instance
-    predication1 = rf_classifier.predict(np.array(test_instance).reshape(1, -1))
-    predictions_proba = rf_classifier.predict_proba(np.array(test_instance).reshape(1, -1))
-    # print(predication1)
-
-    # Get the highest probability for each prediction
-    max_prob = predictions_proba.max(axis=1)
-    # Round the maximum probability to four decimal places
-    max_prob_rounded = np.round(max_prob, 4)
-
-    # return predication1,max_prob
-    return max_prob_rounded
 
 # region score mapping and weightages aggregation
-"""## mapping 8 class to 3 class"""
-
-# last semester,PKL output is char
-def determine_sentiment(predictions):
-    for prediction in predictions:
-        if prediction in ["Anger", "Disgust", "Fear", "Sadness"]:
-            sentiment_final = "Negative"  # Negative sentiment
-        elif prediction in ["Calmness", "Neutrality"]:
-            sentiment_final = "Neutral"  # Neutral sentiment
-        elif prediction in ["Surprise", "Happiness"]:
-            sentiment_final = "Positive"  # Positive sentiment
-    return sentiment_final
-
-
 # determine sentiment category based on combine score
 def determine_sentiment_category(combine_score):
     sentiment_category = "Neutral sentiment"  # default Neutral
@@ -417,82 +347,4 @@ def determine_sentiment_category(combine_score):
     print("determine sentiment category:", sentiment_category)
     return sentiment_category
 
-
-weighted_score = 0
-"""## Calculation final Score"""
-def calculate_final_score(test_instance):
-    max_prob = retrieve_max_prob_random_forest(test_instance)
-    print("retrieve max prob:",max_prob)
-    model_predicate=Boosting_Model_Predication(test_instance)
-    print("last semester boosting model predicate:", model_predicate)
-    # print("max probability is: {}".format(max_prob))
-    # calculate confidence_value
-    if max_prob > 0.7:
-        confidence_value = 1
-    elif max_prob < 0.2:
-        confidence_value = 0
-    else:
-        coefficient = np.interp(max_prob, (0.2, 0.7), (0, 1))
-        confidence_value = coefficient[0]
-    # print("confidence value is: {}".format(confidence_value))
-    # calculate weighted_score
-    if model_predicate == "Anger":
-        weighted_score = -1
-    elif model_predicate == "Sadness":
-        weighted_score = -0.75
-    elif model_predicate == "Disgust" or model_predicate == "Fear":
-        weighted_score = -0.5
-    elif model_predicate == "Neutrality" or model_predicate == "Calmness":
-        weighted_score = 0
-    elif model_predicate == "Surprise":
-        weighted_score = 0.5
-    elif model_predicate == "Happiness":
-        weighted_score = 1
-
-    score = weighted_score * confidence_value
-
-    # Round the final score to four decimal places
-    final_score = np.round(score, 4)
-    print("last semester final score:", final_score)
-    return final_score
-
-
-def calculate_combine_score(test_instance,final_score,sentiment_class_3_new):
-    singlish_output = Singlish_Model_Predication(test_instance)
-
-    if singlish_output == 0:  # Singlish output
-        weight_s1 = 0.2
-        weight_s2 = 0.8
-    else:
-        weight_s1 = 0.8
-        weight_s2 = 0.2
-    combine_score = final_score * weight_s1 + sentiment_class_3_new * weight_s2
-    print("Final combine score:", combine_score)
-    return combine_score
-
 # endregion
-
-
-"""## Retrieve Probability from RF"""
-
-def retrieve_probability(test_instance):
-    # Load the Random Forest model
-    with open(f"{model_file_dir}/RandomForestClassifier_model_8cls_131feat_56acc.pkl", 'rb') as file:
-        rf_classifier = pickle.load(file)
-
-    # Make predictions on the test instance
-    predictions_proba = rf_classifier.predict_proba(np.array(test_instance).reshape(1, -1))
-    class_names = rf_classifier.classes_
-    probability_dict = [{"Filename": class_name, "Final_Score": prob} for class_name, prob in zip(class_names, predictions_proba[0])]
-    return probability_dict
-
-
-
-
-
-
-
-
-
-
-

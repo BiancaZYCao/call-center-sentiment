@@ -23,9 +23,7 @@ from modelscope.utils.constant import Tasks
 
 from text_sentiment import text_sentiment_inference
 
-from model_predicate import determine_sentiment, calc_feature_all, selected_feature_name, \
-    Boosting_Model_Predication, calculate_final_score, retrieve_probability, CNN_Model_Predication, \
-    CNN_Model_Predication_New,  calculate_combine_score, determine_sentiment_category, audio_model_inference
+from model_predicate import audio_model_inference
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from TopicModel import TopicModel
