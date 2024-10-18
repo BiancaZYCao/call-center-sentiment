@@ -46,7 +46,7 @@ var myLineChart = new Chart(ctx, {  // Create a new line chart
       pointHitRadius: 10,  // Radius of the points hit area
       pointBorderWidth: 2,  // Width of the point border
       data: [],  // Start with empty data (y-axis)
-      spanGaps: false  // This ensures the line breaks when there is a null value
+      spanGaps: false // This ensures the line breaks when there is a null value
     }],
   },
   options: {
