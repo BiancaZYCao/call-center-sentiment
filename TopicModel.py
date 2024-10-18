@@ -38,7 +38,11 @@ nltk.download('stopwords')
 #p = inflect.engine()
 
 # Hyperparameters for TopicModel
-similarityThreshold = 0.75
+SIMILARITY_THRESHOLD = 0.75
+
+NUM_OF_TOPICS = 3
+
+NUM_OF_TOPIC_QUESTIONS = 3
 
 # Load the pre-trained BERT model
 #model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -119,7 +123,7 @@ class TopicModel(metaclass=SingletonMeta):
                              r"how (can|do) (i|someone) apply (for)? (a|the)? credit card", r"i want to apply (for)? (a|the)? credit card"]
             },
             "enquire credit card miles": {
-                "unigrams": {"mile": 4, "krisflyer": 4, "credit": 2, "card": 2, "account": 2, "points": 2, "redeem":2, "transfer": 2, "convert": 2, "conversion": 2, "exchange": 2, "rate": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+                "unigrams": {"mile": 4, "krisflyer": 4, "credit": 2, "card": 2, "account": 2, "points": 2, "redeem":2, "compensation": 2, "transfer": 2, "convert": 2, "conversion": 2, "exchange": 2, "rate": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
                 "bigrams": {"credit card": 3, "air mile": 4, "krysflyer mile": 4, "krysflyer point": 4, "card mile":4, "mile point": 3, "convert mile": 4, "conversion rate": 2, "exchange mile": 4, "redeem mile": 4, "transfer miles": 4, "foreign transaction": 2},
                 "trigrams": {"redeem krisflyer mile": 5, "convert krisflyer mile": 5, "transfer krisflyer mile": 5, "credit card mile": 4, "convert to mile": 5, "mile exchange rate": 5},
                 "patterns": [r"(how|want) to (redeem|convert|transfer)? mile", r"(how|want) to (redeem|convert|transfer)? krisflyer (mile|point)",
@@ -171,14 +175,14 @@ class TopicModel(metaclass=SingletonMeta):
                              r"i want to apply (for)? (a|the)? property loan"]
             },
             "enquire travel insurance": {
-                "unigrams": {"enquire": 2, "travel": 3, "insurance": 2, "coverage": 3, "medical": 2, "limit": 2, "trip": 2, "accident": 2, "emergency": 2, "terrorism": 3, "belonging": 2, "assistance": 3,
+                "unigrams": {"enquire": 2, "travel": 3, "insurance": 2, "coverage": 3, "medical": 2, "limit": 2, "policy": 2, "trip": 2, "accident": 2, "compensation": 2, "emergency": 2, "terrorism": 3, "belonging": 2, "assistance": 3,
                              "premium": 2, "private": 2, "region": 2, "luggage": 2, "baggage": 2, "delay": 2, "flight": 3, "claim": 3, "process": 2, "sick": 2,
                              "duration": 2, "policy": 2, "cancel": 2, "buy": 2, "process": 2, "transfer": 2, "purchase": 2, "geographical": 2, "covid-19": 3, "group": 1, "personal": 1},
-                "bigrams": {"travel insurance": 4, "insurance coverage": 4, "insurance premium": 4, "medical expense": 3, "coverage amount": 2, "regional coverage": 2, "flight delay": 2, "flight cancel": 3,
-                            "flight postpone": 3, "luggage delay": 4, "baggage delay": 4, "luggage loss": 4, "lost luggage": 4, "baggage loss": 4, "lost baggage": 4, "personal belonging": 2, "trip cancel": 3, "personal accident": 3,
+                "bigrams": {"travel insurance": 4, "insurance coverage": 4, "insurance premium": 4, "medical expense": 3, "policy number": 3, "coverage amount": 2, "regional coverage": 2, "flight delay": 2, "flight cancel": 3,
+                            "flight postpone": 3, "luggage delay": 4, "baggage delay": 4, "luggage loss": 4, "lost luggage": 4, "baggage loss": 4, "lost baggage": 4, "lost belonging": 4, "personal belonging": 2, "trip cancel": 3, "personal accident": 3,
                             "policy number": 2, "car rental": 2, "claim process": 2, "geographical coverage": 3, "trip cancellation": 2, "flight cancellation": 3, "emergency evacuation": 3},
                 "trigrams": {"apply travel insurance": 5, "how to claim": 3, "travel insurance enquiry": 5, "enquire travel insurance": 4, "buy travel insurance": 4, "cancel travel insurance": 4,
-                             "purchase travel insurance": 3},
+                             "purchase travel insurance": 3, "cannot find luggage": 4, "cannot find baggage": 4},
                 "patterns": [r"enquire (about|regarding)? (a|the)? travel insurance", r"tell me (about|more about) (a|the)? travel insurance",
                              r"buy (a|the)? travel insurance", r"how (can|do) (i|someone) buy (a|the)? travel insurance", r"i want to buy (a|the)? travel insurance"]
             },
@@ -225,7 +229,7 @@ class TopicModel(metaclass=SingletonMeta):
                 "content": [
                     {
                     "type": "text",
-                    "text": "You are a customer service representative for financial analysis across banks in Singapore. Summarise your response within 256 words."
+                    "text": "You are a customer service representative for financial information across banks in Singapore. Summarise your response within 256 words."
                     }
                 ]
                 },
@@ -258,6 +262,7 @@ class TopicModel(metaclass=SingletonMeta):
     def getResponseForQuestions(self, input_text):
         # Get the retrieved context from the index
         context = self.generate_response(input_text)
+        print("CONTEXT = ", context)
 
         # Integrate the context with the input text for the generative model
         prompt = f"Context: {context}\n\nQuestion: {input_text}\n\nAnswer:"
@@ -271,7 +276,7 @@ class TopicModel(metaclass=SingletonMeta):
                 "content": [
                     {
                     "type": "text",
-                    "text": "You are a customer service representative for financial analysis across banks in Singapore. Summarise your response within 256 words."
+                    "text": "You are a customer service representative for financial information across banks in Singapore. Summarise your response within 200 words."
                     }
                 ]
                 },
@@ -589,7 +594,7 @@ class TopicModel(metaclass=SingletonMeta):
         return "unknown_intent", []
 
 
-    def getEntityTopic(self, text, n_top_words=10):
+    def getEntityTopic(self, text, n_top_words=NUM_OF_TOPICS):
         prompt = "Rephrase the following text into formal and concise language: " + text        
         text = self.getOpenAIResponses(prompt)
 
@@ -606,7 +611,7 @@ class TopicModel(metaclass=SingletonMeta):
         return self.topics[:n_top_words]
     
 
-    def getEntityTopic0(self, text, n_top_words=10):        
+    def getEntityTopic0(self, text, n_top_words=NUM_OF_TOPICS):        
 
         custom_keywords = { "credit card": ["credit card", "card", "reward", "waive", "credit limit", "payment", "annual fee", "interest rate", "cashback",
                                             "reward point", "minimum payment", "late fee", "grace period", "foreign transaction fee", "transaction fee", "penalty",
@@ -671,7 +676,7 @@ class TopicModel(metaclass=SingletonMeta):
         return self.topics[:n_top_words]
     
 
-    def getLDATopics(self, sentence, n_top_words=7):
+    def getLDATopics(self, sentence, n_top_words=NUM_OF_TOPICS):
         # Step 1: Preprocess the entire document as one unit
         preprocessed_doc = self.preprocess_text(sentence)
         #preprocessed_texts = tp.text_preprocessing(sentence)
@@ -710,7 +715,7 @@ class TopicModel(metaclass=SingletonMeta):
     # sentence - the inut sentence, can consist of multiple sentences.
     # num_of_topics - the number of topics to retrieve. Maximum is 10. Default is 7.
     # Return a list of topic words.
-    def getBERTopics(self, sentence, n_top_words=7):
+    def getBERTopics(self, sentence, n_top_words=NUM_OF_TOPICS):
         topic_threshold = 0.3
         # Preprocess the texts (same as during training)
         #preprocessed_texts = self.preprocess_text(sentence)
@@ -780,9 +785,9 @@ class TopicModel(metaclass=SingletonMeta):
         return self.topics
 
 
-    def generateQuestionsFromTopic(self, topic, category, num_of_questions=5):        
+    def generateQuestionsFromTopic(self, topic, category, num_of_questions=NUM_OF_TOPIC_QUESTIONS):        
         prompt = "List " + str(num_of_questions) + " questions that can be generated from the topic \'" + topic + "\' as a Python list that can be assigned to a variable."
-        prompt += "The generated questions should be in the context of \'" + category + "\' and targeted to its representative."
+        prompt += "The generated questions should be in the context of \'" + category + "\' and targeted to its representative. Limit each question to 10 words."
         #prompt += "Output the questions as a Python list. "
         ##print("Prompt: ", prompt)
 
