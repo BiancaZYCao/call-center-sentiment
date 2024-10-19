@@ -577,6 +577,7 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                 if message_data.get('type') == 'selected_question':
                     selected_question = message_data.get('data')
                     res = tm.getResponseForQuestions(selected_question)
+                    # res = tm.getAnswerFromQuestion(selected_question)
                     response = {
                         'type': 'question_answer',
                         'data': res

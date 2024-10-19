@@ -242,6 +242,7 @@ function startListening() {
             var topics = textData ? JSON.parse(textData) : null;
             console.debug('topics receieved:', topics)
             if (topics && topics.length > 0) {
+                remainingTopics = [...topics];
 
                 // Clear the previous tags container
                 const tagsContainer = document.getElementById("tags-container");
@@ -258,12 +259,25 @@ function startListening() {
                     closeButton.className = 'close';
                     closeButton.textContent = '×';
                     closeButton.onclick = function () {
+                        // Remove the topic from remainingTopics
+                        remainingTopics = remainingTopics.filter(t => t !== topic);
+                        console.log('Remaining topics:', remainingTopics);
+
                         // Remove the tag element from the container
                         tagsContainer.removeChild(tagElement);
+
+                        // Send the updated remainingTopics to the backend
+                        sendRemainingTopicsToBackend(remainingTopics);
+
+
                     };
                     tagElement.appendChild(closeButton);
                     tagsContainer.appendChild(tagElement);
                 });
+                // If no topics have been removed, send the full list of topics to the backend
+                if (remainingTopics.length === topics.length) {
+                    sendRemainingTopicsToBackend(remainingTopics);
+                }
             }
         }
         // Handle topicsAndQuestions response
@@ -363,6 +377,19 @@ function displayAnswer(answer) {
 
 
 
+// Function to sent remaining topics to backend
+function sendRemainingTopicsToBackend(remainingTopics) {
+    const dataToSend = {
+        type: 'remaining_topics',
+        data: remainingTopics
+    };
+
+    // Print the data to the console to check the format
+    console.log("Data being sent to backend:", JSON.stringify(dataToSend));
+
+    // Send the data to the WebSocket server
+    wsAnalysis.send(JSON.stringify(dataToSend));
+}
 
 
 
