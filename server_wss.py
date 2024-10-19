@@ -1,6 +1,9 @@
 from datetime import datetime
 import json, time
 import logging
+
+from testTopicModel import user_demo
+
 # Set up logging
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -580,23 +583,7 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                     }
                     await websocket_analysis.send_json(response)
 
-        # 处理 WebSocket 消息
-        async def handle_websocket_messages_v2():
-            nonlocal cache_text_client
-            while True:
-                # 接收前端的 WebSocket 消息
-                message = await websocket_analysis.receive_text()
-                message_data = json.loads(message)
 
-                # process user selected question
-                if message_data.get('type') == 'selected_question':
-                    selected_question = message_data.get('data')
-                    res = tm.getResponseForQuestions(selected_question)
-                    response = {
-                        'type': 'question_answer',
-                        'data': res
-                    }
-                    await websocket_analysis.send_json(response)
 
         #process result after STT and analysis
         async def process_stt_results():

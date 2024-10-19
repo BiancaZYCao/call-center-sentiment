@@ -237,12 +237,12 @@ function startListening() {
         if (resJson.type === "text_sentiment") {
             sentimentResult.textContent = `Sentiment: ${textData}  at ${processedAt.slice(11, 19)}`;
         }
-
         if (resJson.type === "topics") {
             // Parse the textData to a list
             var topics = textData ? JSON.parse(textData) : null;
             console.debug('topics receieved:', topics)
             if (topics && topics.length > 0) {
+
                 // Clear the previous tags container
                 const tagsContainer = document.getElementById("tags-container");
                 tagsContainer.innerHTML = '';
@@ -258,9 +258,9 @@ function startListening() {
                     closeButton.className = 'close';
                     closeButton.textContent = '×';
                     closeButton.onclick = function () {
-                        tagsContainer.removeChild(tagElement);  // Remove the tag when the close button is clicked
+                        // Remove the tag element from the container
+                        tagsContainer.removeChild(tagElement);
                     };
-
                     tagElement.appendChild(closeButton);
                     tagsContainer.appendChild(tagElement);
                 });
