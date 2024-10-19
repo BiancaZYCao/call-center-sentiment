@@ -2,6 +2,7 @@ import os
 import re
 import ast
 import spacy
+import torch
 import joblib
 import numpy as np
 from collections import defaultdict
@@ -30,12 +31,26 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
 from bertopic import BERTopic
+from transformers import LlamaForCausalLM, LlamaTokenizer, LlamaTokenizerFast
+#from huggingface_hub import login
 
 # Download NLTK stopwords
 nltk.download('stopwords')
 
 # Initialize the inflect engine
 #p = inflect.engine()
+
+# Load the model and tokenizer, and move the model to the GPU
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+#hf_token = "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"
+#login(token=hf_token)
+
+# Example: Using GPT-2 or any other model from Hugging Face
+#model_name = "meta-llama/Llama-3.2-1B"  # Replace with the desired model
+#local_model_path = "./models/Llama3.2-1B"
+#model = LlamaForCausalLM.from_pretrained(local_model_path).to(device)
+#tokenizer = LlamaTokenizerFast.from_pretrained(local_model_path, legacy=False)
 
 # Hyperparameters for TopicModel
 SIMILARITY_THRESHOLD = 0.75
@@ -182,7 +197,7 @@ class TopicModel(metaclass=SingletonMeta):
                             "flight postpone": 3, "luggage delay": 4, "baggage delay": 4, "luggage loss": 4, "lost luggage": 4, "baggage loss": 4, "lost baggage": 4, "lost belonging": 4, "personal belonging": 2, "trip cancel": 3, "personal accident": 3,
                             "policy number": 2, "car rental": 2, "claim process": 2, "geographical coverage": 3, "trip cancellation": 2, "flight cancellation": 3, "emergency evacuation": 3},
                 "trigrams": {"apply travel insurance": 5, "how to claim": 3, "travel insurance enquiry": 5, "enquire travel insurance": 4, "buy travel insurance": 4, "cancel travel insurance": 4,
-                             "purchase travel insurance": 3, "cannot find luggage": 4, "cannot find baggage": 4},
+                             "purchase travel insurance": 3, "cannot find luggage": 4, "cannot find my luggage": 4, "cannot find baggage": 4, "cannot find my baggage": 4, "lost my luggage": 4, "lost my baggage": 4},
                 "patterns": [r"enquire (about|regarding)? (a|the)? travel insurance", r"tell me (about|more about) (a|the)? travel insurance",
                              r"buy (a|the)? travel insurance", r"how (can|do) (i|someone) buy (a|the)? travel insurance", r"i want to buy (a|the)? travel insurance"]
             },
@@ -204,6 +219,8 @@ class TopicModel(metaclass=SingletonMeta):
         self.topicsAndQuestions = {}
 
     def initOpenAI(self):
+        #os.environ['OPENAI_API_KEY'] = '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'
+        #os.environ['OPENAI_API_KEY'] = 'sk-proj-NNn2ogDOcAahK91dPqzAT3BlbkFJoUPvh8YGkkCkzlOtx4sL'
         os.environ['OPENAI_API_KEY'] = "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"
         self.model_id = "ft:gpt-4o-mini-2024-07-18:personal::A0l6mkLn"
 
@@ -253,6 +270,19 @@ class TopicModel(metaclass=SingletonMeta):
 
         return response.choices[0].message.content
     
+
+    def getResponseForQuestions4(self, input_text):
+        # Get the retrieved context from the index
+        response = self.generate_response(input_text)
+        questions_list = response
+        # Check if the result is a list
+        #if not isinstance(response, list):
+        #    questions_list = [line.strip("- ").strip() for line in response.strip().split("\n") if line.strip()]
+
+        #print("questions_list = ", questions_list)
+
+        return questions_list
+
     # Function to get response from RAG based on the question or prompt.
     # Parameters:
     # input_text - the question or prompt
@@ -260,7 +290,7 @@ class TopicModel(metaclass=SingletonMeta):
     def getResponseForQuestions(self, input_text):
         # Get the retrieved context from the index
         context = self.generate_response(input_text)
-        print("CONTEXT = ", context)
+        #print("CONTEXT = ", context)
 
         # Integrate the context with the input text for the generative model
         prompt = f"Context: {context}\n\nQuestion: {input_text}\n\nAnswer:"
@@ -274,7 +304,7 @@ class TopicModel(metaclass=SingletonMeta):
                 "content": [
                     {
                     "type": "text",
-                    "text": "You are a customer service representative for financial information across banks in Singapore. Summarise your response within 200 words."
+                    "text": "You are a customer service representative for financial information across banks in Singapore. Summarise your response within 100 words."
                     }
                 ]
                 },
@@ -288,10 +318,10 @@ class TopicModel(metaclass=SingletonMeta):
                 ]
                 }
             ],
-            max_tokens=256,
+            max_tokens=110,
             n=1,
             stop=None,
-            temperature=1
+            temperature=0.7
         )
 
         # Extract the text from the completion
@@ -301,6 +331,100 @@ class TopicModel(metaclass=SingletonMeta):
 
         return generated_text
     
+    # Function to load the index from storage and create a retriever
+    def load_and_create_retriever(self, persist_dir):
+        # Load the index from the persisted storage directory
+        storage_context = StorageContext.from_defaults(persist_dir=persist_dir)
+        index = load_index_from_storage(storage_context)
+        
+        # Convert the index into a retriever
+        #retriever = index.as_retriever(similarity_top_k=1)
+
+        retriever = index.as_query_engine(
+                        response_mode="tree_summarize",
+                        verbose=True,
+                    )
+
+        return retriever
+
+    # Function to query the index and retrieve relevant information
+    def retrieve_information(self, retriever, prompt):        
+        # Use the retriever to fetch the relevant information for the prompt
+        retrieved_docs = retriever.query(prompt)
+        #retrieved_docs = retriever.retrieve(prompt)
+
+        #print("RESPONSE = ", retrieved_docs.response)
+
+        # You can process the retrieved documents if needed
+        #return retrieved_docs[0].text
+        return retrieved_docs
+
+    # Function to generate a response using the model
+    def get_response(self, prompt):
+        inputs = tokenizer(prompt, return_tensors="pt").to(device)  # Move input to GPU
+        attention_mask = inputs.get("attention_mask", None)
+        outputs = model.generate(inputs["input_ids"], attention_mask=attention_mask, max_length=256)
+        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+        return response
+
+    def generate_response4(self, query_prompt):
+        print("PROMPT = ", query_prompt)
+        # Load the retriever from the stored index
+        retriever = self.load_and_create_retriever(vector_store_path)
+        
+        retrieved_info = self.retrieve_information(retriever, query_prompt)
+
+        print("retrieved_info = ", retrieved_info.response)
+
+        # Optional: use the LLM to generate a response from the retrieved information
+        #llm = OpenAI(temperature=0.7)
+        #llm = OpenAI()
+        #context = " ".join([doc.get_text() for doc in retrieved_info])
+        #response = llm(f"Based on the following context, answer the query: {query_prompt}\n\n{context}")
+        context = retrieved_info.response
+        response = self.get_response(f"You are a customer service representative for financial information across banks in Singapore. Based on the following context, answer the query and summarise your response within 150 words: {query_prompt}\n\n{context}")
+        #response = self.get_response(f"{query_prompt}\n\n{context}")
+
+        print("RESPONSE = ", response)
+
+        #return retrieved_info.response
+        return response
+
+    # Function to load the index from storage
+    def load_gpt_index(self, storage_path):
+        # Load the pre-built index from storage path
+        index = load_index_from_storage(storage_path)
+
+        return index
+
+    # Function to create a retriever and get information based on a prompt
+    def create_retrieval_function(self, index, llm):
+        retriever = index.as_retriever()
+    
+        def retrieve(prompt):
+            # Query the retriever with the prompt to get relevant documents
+            retrieved_docs = retriever.query(prompt)
+            
+            # Combine the retrieved information and pass it to the LLM for a final response
+            context = " ".join([doc.get_text() for doc in retrieved_docs])
+            
+            # Ask the LLM to generate a final response based on the context
+            full_prompt = f"Based on the following information, answer the query:\n\n{context}\n\nQuery: {prompt}"
+            response = llm(full_prompt)
+
+            return response
+        
+        return retrieve
+
+    def generate_response2(self, query_prompt):
+        gpt_index = self.load_gpt_index(vector_store_path)
+        openai_llm = OpenAI(temperature=0.7)
+        retrieve = self.create_retrieval_function(gpt_index, openai_llm)
+        retrieval_result = retrieve(query_prompt)
+
+        return retrieval_result
+
     def generate_response(self, prompt):        
         # If not already done, initialize ‘index’ and ‘query_engine’
         if not hasattr(self, "index"):
@@ -311,6 +435,21 @@ class TopicModel(metaclass=SingletonMeta):
 
         # Submit query
         response = self.query_engine.query(prompt)
+
+        return response.response
+
+    def generate_response1(self, input_text):
+        # If not already done, initialize ‘index’ and ‘query_engine’
+        if not hasattr(self.generate_response, "index"):
+            # rebuild storage context and load index
+            storage_context = StorageContext.from_defaults(persist_dir="./gpt_store3")
+            self.generate_response.index = load_index_from_storage(storage_context=storage_context, index_id="vector_index")
+
+        # Initialize query engine
+        self.generate_response.query_engine = self.generate_response.index.as_query_engine()
+
+        # Submit query
+        response = self.generate_response.query_engine.query(input_text)
 
         return response.response
 
@@ -347,7 +486,7 @@ class TopicModel(metaclass=SingletonMeta):
         return vectorizer
     
 
-    def getTopics(self, sentence, n_top_words=7, model=model_to_use):
+    def getTopics(self, sentence, n_top_words=NUM_OF_TOPICS, model=model_to_use):
         if model == "bertopic":
             return self.getBERTopics(sentence, n_top_words=n_top_words)
         elif model == "lda":
@@ -587,6 +726,13 @@ class TopicModel(metaclass=SingletonMeta):
             
             # Combine keywords in the order: trigrams, bigrams, unigrams
             combined_keywords = list(trigram_keywords) + list(bigram_keywords) + list(unigram_keywords)
+
+            # Remove unigrams that are part of a bigram or trigram
+            for unigram in list(unigram_keywords):  # Iterate over the unigrams
+                for phrase in bigram_keywords.union(trigram_keywords):  # Check both bigrams and trigrams
+                    if unigram in phrase.split():  # If unigram is part of a bigram or trigram
+                        combined_keywords.remove(unigram)  # Remove the unigram
+
             return best_intent, combined_keywords
         
         return "unknown_intent", []
@@ -790,6 +936,7 @@ class TopicModel(metaclass=SingletonMeta):
         ##print("Prompt: ", prompt)
 
         response = self.getResponseForQuestions(prompt)
+        #print("RESPONSE 2 = ", response)
         questions = self.extractListFromResponse(response)
 
         ##print(questions)
