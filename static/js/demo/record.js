@@ -31,9 +31,6 @@ var isRecording = false;
 // mark previous STT speaker label
 var speaker_last = 'unknown';
 
-
-
-
 // Gauge configuration - 20240909
 var opts = {
     angle: 0.15, // The span of the gauge arc
@@ -241,24 +238,35 @@ function startListening() {
             // Parse the textData to a list
             var topics = textData ? JSON.parse(textData) : null;
             console.debug('topics receieved:', topics)
-            if (topics && topics.length > 0) {
+            if (topics && topics.length > 0) {                
                 remainingTopics = [...topics];
 
                 // Clear the previous tags container
                 const tagsContainer = document.getElementById("tags-container");
                 tagsContainer.innerHTML = '';
 
+
                 // Iterate over the topics array and dynamically generate and insert tags
                 topics.forEach(topic => {
                     const tagElement = document.createElement('div');
                     tagElement.className = 'tag tag-primary';  // Set class name for styling (e.g., tag-success, tag-info, etc.)
                     tagElement.textContent = topic;  // Set the topic as the tag content
+                                        
 
                     // Create a close button for each tag
                     const closeButton = document.createElement('span');
                     closeButton.className = 'close';
                     closeButton.textContent = '×';
                     closeButton.onclick = function () {
+                        // Get the questions container
+                        const questionsContainer = document.getElementById("questions-container");
+
+                        // Check if the questions container exists before proceeding
+                        if (!questionsContainer) {
+                            console.error("Questions container does not exist.");
+                            return; // Stop execution if the container does not exist
+                        }
+
                         // Remove the topic from remainingTopics
                         remainingTopics = remainingTopics.filter(t => t !== topic);
                         console.log('Remaining topics:', remainingTopics);
@@ -266,21 +274,35 @@ function startListening() {
                         // Remove the tag element from the container
                         tagsContainer.removeChild(tagElement);
 
-                        // Send the updated remainingTopics to the backend
-                        sendRemainingTopicsToBackend(remainingTopics);
+                        // Find the corresponding topic section
+                        const topicHeader = Array.from(questionsContainer.querySelectorAll('h6')).find(header => header.textContent === topic);
+                        if (topicHeader) {
+                            const questionDiv = topicHeader.nextElementSibling;
 
+                            // Remove the topic header and question div from the container
+                            if (questionsContainer.contains(topicHeader)) {
+                                questionsContainer.removeChild(topicHeader);
+                            }
+                            if (questionDiv && questionsContainer.contains(questionDiv)) {
+                                questionsContainer.removeChild(questionDiv);
+                            }
+
+                            // Send the updated remainingTopics to the backend
+                            // sendRemainingTopicsToBackend(remainingTopics);
+                        } else {
+                            console.error(`Topic '${topic}' not found.`);
+                        }                        
 
                     };
                     tagElement.appendChild(closeButton);
                     tagsContainer.appendChild(tagElement);
                 });
                 // If no topics have been removed, send the full list of topics to the backend
-                if (remainingTopics.length === topics.length) {
-                    sendRemainingTopicsToBackend(remainingTopics);
-                }
+                // if (remainingTopics.length === topics.length) {
+                //     sendRemainingTopicsToBackend(remainingTopics);
+                // }
             }
         }
-
 
         // Handle topicsAndQuestions response
         if (resJson.type === "topicsAndQuestions") {
@@ -289,6 +311,7 @@ function startListening() {
 
             // // Only update if topicsAndQuestions is not empty or null
             if ((topicsAndQuestions && Object.keys(topicsAndQuestions).length > 0)) {
+                
                 // Clear previous content in the questions container
                 const questionsContainer = document.getElementById("questions-container");
                 questionsContainer.innerHTML = '';
@@ -303,7 +326,7 @@ function startListening() {
                     // Create a div to contain questions with checkboxes
                     const questionDiv = document.createElement('div');
 
-                    topicsAndQuestions[topic].forEach(question => {
+                    topicsAndQuestions[topic].forEach(question => {                        
                         // Create a label for the checkbox and question text
                         const label = document.createElement('label');
                         const checkbox = document.createElement('input');

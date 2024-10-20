@@ -576,7 +576,8 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                     loading_id = message_data.get('loadingId')  # Get the loadingId from the frontend
 
                     # Fetch the answer (replace with your actual logic)
-                    res = tm.getResponseForQuestions(selected_question)
+                    # res = tm.getResponseForQuestions(selected_question)
+                    res = tm.getAnswerFromQuestion(selected_question)
 
                     # Prepare the response, including the loadingId
                     response = {

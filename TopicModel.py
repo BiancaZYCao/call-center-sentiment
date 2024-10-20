@@ -55,9 +55,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Hyperparameters for TopicModel
 SIMILARITY_THRESHOLD = 0.75
 
-NUM_OF_TOPICS = 3
+NUM_OF_TOPICS = 2
 
-NUM_OF_TOPIC_QUESTIONS = 3
+NUM_OF_TOPIC_QUESTIONS = 2
 
 # Load the pre-trained BERT model
 #model = SentenceTransformer('all-MiniLM-L6-v2')
