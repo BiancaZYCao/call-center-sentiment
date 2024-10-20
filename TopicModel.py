@@ -29,7 +29,6 @@ from TextPreprocessing import text_preprocessing
 from sklearn.cluster import KMeans
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import CountVectorizer
 from bertopic import BERTopic
 from transformers import LlamaForCausalLM, LlamaTokenizer, LlamaTokenizerFast
 #from huggingface_hub import login
@@ -55,7 +54,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Hyperparameters for TopicModel
 SIMILARITY_THRESHOLD = 0.75
 
-NUM_OF_TOPICS = 2
+NUM_OF_TOPICS = 3
 
 NUM_OF_TOPIC_QUESTIONS = 2
 
@@ -99,7 +98,7 @@ class TopicModel(metaclass=SingletonMeta):
                 "patterns": [r"(how|want) to apply credit card", r"process of credit card application", r"apply (for)? (a|the)? credit card", 
                              r"how (can|do) (i|someone) apply (for)? (a|the)? credit card", r"i want to apply (for)? (a|the)? credit card"]
             },
-            "enquire credit card miles": {
+            "enquire credit card mile": {
                 "unigrams": {"mile": 4, "krisflyer": 4, "credit": 2, "card": 2, "account": 2, "points": 2, "redeem":2, "compensation": 2, "transfer": 2, "convert": 2, "conversion": 2, "exchange": 2, "rate": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
                 "bigrams": {"credit card": 3, "air mile": 4, "krysflyer mile": 4, "krysflyer point": 4, "card mile":4, "mile point": 3, "convert mile": 4, "conversion rate": 2, "exchange mile": 4, "redeem mile": 4, "transfer miles": 4, "foreign transaction": 2},
                 "trigrams": {"redeem krisflyer mile": 5, "convert krisflyer mile": 5, "transfer krisflyer mile": 5, "credit card mile": 4, "convert to mile": 5, "mile exchange rate": 5},
@@ -113,7 +112,7 @@ class TopicModel(metaclass=SingletonMeta):
                 "patterns": [r"(how|want) to waive card fee", r"(how|want) to waive credit card fee", r"waive (the)? (credit)? card fee", r"can you waive (my|the)? credit card fee",
                              r"(how can i|please) waive (the)? card fee"]
             },
-            "credit card rewards": {
+            "credit card reward": {
                 "unigrams": {"rewards": 3, "credit": 2, "card": 2, "points": 2, "redeem":2, "account": 2, "transfer": 2, "convert": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
                 "bigrams": {"credit card": 3, "redeem rewards": 4, "rewards point": 3, "convert point": 4, "transfer point": 4, "foreign transaction": 2},
                 "trigrams": {"redeem rewards point": 5, "convert rewards point": 5, "transfer rewards point": 5},
@@ -424,7 +423,7 @@ class TopicModel(metaclass=SingletonMeta):
         
         return result
     
-    def remove_duplicates(self, word_list):
+    def remove_duplicates0(self, word_list):
         seen = set()
         result = []
         
@@ -432,6 +431,15 @@ class TopicModel(metaclass=SingletonMeta):
             if word not in seen:
                 seen.add(word)
                 result.append(word)
+        
+        return result
+    
+    def remove_duplicates(self, word_list):
+        # Split the trigram into individual words
+        ngram = word_list[0].split()
+
+        # Remove 'mile' and 'card' (and any other words in the trigram) from the list if they exist
+        result = [word for word in word_list if word not in ngram]
         
         return result
 
@@ -699,6 +707,66 @@ class TopicModel(metaclass=SingletonMeta):
         
         return "unknown_intent", []
 
+    def recognize_intent4(self, user_input):
+        user_input = user_input.lower()
+        
+        # Initialize score and keyword dictionary for each intent
+        intent_scores = defaultdict(int)
+        
+        # Separate sets for trigrams, bigrams, and unigrams to avoid duplicates
+        trigram_keywords = set()
+        bigram_keywords = set()
+        unigram_keywords = set()
+
+        # Generate unigrams, bigrams, and trigrams from user input
+        unigrams = user_input.split()
+        bigrams = [' '.join(bigram) for bigram in self.get_ngrams(user_input, 2)]
+        trigrams = [' '.join(trigram) for trigram in self.get_ngrams(user_input, 3)]
+
+        # Match unigrams, bigrams, and trigrams with weighted keywords
+        for intent, data in self.intents.items():
+            for trigram in trigrams:
+                if trigram in data["trigrams"]:
+                    intent_scores[intent] += data["trigrams"][trigram]
+                    trigram_keywords.add(trigram)
+            
+            for bigram in bigrams:
+                if bigram in data["bigrams"]:
+                    intent_scores[intent] += data["bigrams"][bigram]
+                    bigram_keywords.add(bigram)
+
+            for unigram in unigrams:
+                if unigram in data["unigrams"]:
+                    intent_scores[intent] += data["unigrams"][unigram]
+                    unigram_keywords.add(unigram)
+
+            # Check patterns using regular expressions
+            for pattern in data["patterns"]:
+                if re.search(pattern, user_input):
+                    intent_scores[intent] += 5  # Add pattern match boost
+                    trigram_keywords.add(f"Pattern match: {pattern}")  # Add pattern as trigram for sequence priority
+
+        # Identify the intent with the highest score
+        if intent_scores:
+            best_intent = max(intent_scores, key=intent_scores.get)
+            
+            # Combine keywords in the order: trigrams, bigrams, unigrams
+            combined_keywords = list(trigram_keywords) + list(bigram_keywords) + list(unigram_keywords)
+            
+            # Remove unigrams and bigrams that are part of a trigram
+            for unigram in list(unigram_keywords):  # Iterate over the unigrams
+                for phrase in trigram_keywords:  # Check if unigram is part of any trigram
+                    if unigram in phrase.split():  # If unigram is part of a trigram
+                        combined_keywords.remove(unigram)  # Remove the unigram
+            
+            for bigram in list(bigram_keywords):  # Iterate over the bigrams
+                for phrase in trigram_keywords:  # Check if bigram is part of any trigram
+                    if bigram in phrase:  # If bigram is part of a trigram
+                        combined_keywords.remove(bigram)  # Remove the bigram
+            
+            return best_intent, combined_keywords
+        
+        return "unknown_intent", []
 
     def getEntityTopic(self, text, n_top_words=NUM_OF_TOPICS):
         prompt = "Rephrase the following text into formal and concise language: " + text        
@@ -707,14 +775,16 @@ class TopicModel(metaclass=SingletonMeta):
         # Preprocess the text
         text = self.preprocess_text_2(text)
 
-        intent, words = self.recognize_intent(text)
+        intent, keywords = self.recognize_intent(text)
         print("INTENT = ", intent)
-        print("WORDS = ", words)
-        self.topics = words
+        print("KEYWORDS = ", keywords)
+        self.topics = keywords
         if intent != "unknown_intent":
             self.topics.insert(0, intent)
 
-        return self.topics[:n_top_words]
+        self.topics = self.remove_duplicates(self.topics)
+
+        return self.topics[:n_top_words + 1]
     
 
     def getEntityTopic0(self, text, n_top_words=NUM_OF_TOPICS):        
@@ -919,14 +989,15 @@ class TopicModel(metaclass=SingletonMeta):
     # {topic: [questions]}
     def getTopicsAndQuestions(self):
         topicsAndQuestions = {}
-        category = ""
+        intent = ""
         if len(self.topics) > 0:
-            category = self.topics[0]
+            intent = self.topics[0]
             ##print("topics = ", self.topics)
+            #self.topics.pop()
             for topic in self.topics:
                 if topic not in topicsAndQuestions:
                     topicsAndQuestions[topic] = []  # Initialize an empty list if the key doesn't exist
-                topicsAndQuestions[topic] = self.generateQuestionsFromTopic(topic, category)
+                topicsAndQuestions[topic] = self.generateQuestionsFromTopic(topic, intent)
             self.topicsAndQuestions = topicsAndQuestions
 
         return topicsAndQuestions
