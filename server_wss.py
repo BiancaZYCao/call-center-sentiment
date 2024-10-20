@@ -2,8 +2,6 @@ from datetime import datetime
 import json, time
 import logging
 
-from testTopicModel import user_demo
-
 # Set up logging
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
