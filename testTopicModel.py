@@ -34,30 +34,30 @@ def testGetTopicsAndQuestions():
 
 # Run this function to simulate reading from the imda excel file where toics are 
 # identified for every input sentences.
-def testWithTranscript():
-    # Load the Excel file
-    file_path = 'input/imda_conversation.xlsx'
-    df = pd.read_excel(file_path)
-
-    # Extract relevant columns where dialog_type is "bank"
-    df_filtered = df[df['dialog_type'] == 'bank'][['speaker_type', 'text']]
-
-    # Iterate through the rows and implement the logic
-    i = 0
-    while i < len(df_filtered):
-        if df_filtered.iloc[i]['speaker_type'] == 'client':
-            sentence = df_filtered.iloc[i]['text']
-            print("Client:", sentence)
-            topics = tm.getTopics(sentence)
-            if len(topics) > 0:
-                print(topics)
-            # Check if the next row is an agent
-            if i + 1 < len(df_filtered) and df_filtered.iloc[i + 1]['speaker_type'] == 'agent':
-                input("Press enter to continue...")
-                # Skip to the next client after agent
-                while i + 1 < len(df_filtered) and df_filtered.iloc[i + 1]['speaker_type'] != 'client':
-                    i += 1
-        i += 1
+# def testWithTranscript():
+#     # Load the Excel file
+#     file_path = 'input/imda_conversation.xlsx'
+#     df = pd.read_excel(file_path)
+#
+#     # Extract relevant columns where dialog_type is "bank"
+#     df_filtered = df[df['dialog_type'] == 'bank'][['speaker_type', 'text']]
+#
+#     # Iterate through the rows and implement the logic
+#     i = 0
+#     while i < len(df_filtered):
+#         if df_filtered.iloc[i]['speaker_type'] == 'client':
+#             sentence = df_filtered.iloc[i]['text']
+#             print("Client:", sentence)
+#             topics = tm.getTopics(sentence)
+#             if len(topics) > 0:
+#                 print(topics)
+#             # Check if the next row is an agent
+#             if i + 1 < len(df_filtered) and df_filtered.iloc[i + 1]['speaker_type'] == 'agent':
+#                 input("Press enter to continue...")
+#                 # Skip to the next client after agent
+#                 while i + 1 < len(df_filtered) and df_filtered.iloc[i + 1]['speaker_type'] != 'client':
+#                     i += 1
+#         i += 1
 
 
 def display_numbered_list(items):
@@ -99,5 +99,5 @@ def user_demo():
 
 #testGetTopics()
 #testGetTopicsAndQuestions()
-testWithTranscript()
+# testWithTranscript()
 #user_demo()
