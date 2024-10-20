@@ -237,12 +237,13 @@ function startListening() {
         if (resJson.type === "text_sentiment") {
             sentimentResult.textContent = `Sentiment: ${textData}  at ${processedAt.slice(11, 19)}`;
         }
-
         if (resJson.type === "topics") {
             // Parse the textData to a list
             var topics = textData ? JSON.parse(textData) : null;
             console.debug('topics receieved:', topics)
             if (topics && topics.length > 0) {
+                remainingTopics = [...topics];
+
                 // Clear the previous tags container
                 const tagsContainer = document.getElementById("tags-container");
                 tagsContainer.innerHTML = '';
@@ -258,51 +259,92 @@ function startListening() {
                     closeButton.className = 'close';
                     closeButton.textContent = '×';
                     closeButton.onclick = function () {
-                        tagsContainer.removeChild(tagElement);  // Remove the tag when the close button is clicked
-                    };
+                        // Remove the topic from remainingTopics
+                        remainingTopics = remainingTopics.filter(t => t !== topic);
+                        console.log('Remaining topics:', remainingTopics);
 
+                        // Remove the tag element from the container
+                        tagsContainer.removeChild(tagElement);
+
+                        // Send the updated remainingTopics to the backend
+                        sendRemainingTopicsToBackend(remainingTopics);
+
+
+                    };
                     tagElement.appendChild(closeButton);
                     tagsContainer.appendChild(tagElement);
                 });
+                // If no topics have been removed, send the full list of topics to the backend
+                if (remainingTopics.length === topics.length) {
+                    sendRemainingTopicsToBackend(remainingTopics);
+                }
             }
         }
+
+
         // Handle topicsAndQuestions response
-        // if (resJson.type === "topicsAndQuestions") {
-        //     var topicsAndQuestions = textData ? JSON.parse(textData) : null;
-        //     console.debug('topicsAndQuestions received:', topicsAndQuestions);
+        if (resJson.type === "topicsAndQuestions") {
+            var topicsAndQuestions = textData ? JSON.parse(textData) : null;
+            console.debug('topicsAndQuestions received:', topicsAndQuestions);
 
-        //     if (topicsAndQuestions) {
-        //         // Clear previous content in the questions container
-        //         const questionsContainer = document.getElementById("questions-container");
-        //         questionsContainer.innerHTML = '';
+            // // Only update if topicsAndQuestions is not empty or null
+            if ((topicsAndQuestions && Object.keys(topicsAndQuestions).length > 0)) {
+                // Clear previous content in the questions container
+                const questionsContainer = document.getElementById("questions-container");
+                questionsContainer.innerHTML = '';
 
-        //         // Iterate over each topic and its questions
-        //         Object.keys(topicsAndQuestions).forEach(topic => {
-        //             // Create a topic header
-        //             const topicHeader = document.createElement('h6');
-        //             topicHeader.textContent = topic;
-        //             questionsContainer.appendChild(topicHeader);
+                // Iterate over each topic and its questions
+                Object.keys(topicsAndQuestions).forEach(topic => {
+                    // Create a topic header
+                    const topicHeader = document.createElement('h6');
+                    topicHeader.textContent = topic;
+                    questionsContainer.appendChild(topicHeader);
 
-        //             // Create a list for questions under this topic
-        //             const questionList = document.createElement('ul');
+                    // Create a div to contain questions with checkboxes
+                    const questionDiv = document.createElement('div');
 
-        //             topicsAndQuestions[topic].forEach(question => {
-        //                 const questionItem = document.createElement('li');
-        //                 questionItem.textContent = question;
+                    topicsAndQuestions[topic].forEach(question => {
+                        // Create a label for the checkbox and question text
+                        const label = document.createElement('label');
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.name = `question-${topic}`;
+                        checkbox.value = question;
 
-        //                 // Add a click event to the question item to select it
-        //                 questionItem.onclick = function () {
-        //                     addSelectedReply(question);
-        //                 };
+                        // Add an event listener for each checkbox
+                        checkbox.onchange = function () {
+                            if (this.checked) {
+                                // Send selected question to the backend and display selected question
+                                sendQuestionToBackend(question);
+                                showSelectedQuestionAnswer(question);
+                            }
+                        };
 
-        //                 questionList.appendChild(questionItem);
-        //             });
+                        // Append the checkbox and the question text to the label
+                        label.appendChild(checkbox);
+                        label.appendChild(document.createTextNode(` ${question}`));
 
-        //             questionsContainer.appendChild(questionList);
-        //         });
-        //     }
-        // }
+                        // Add a line break for each question
+                        questionDiv.appendChild(label);
+                        questionDiv.appendChild(document.createElement('br'));
+                    });
 
+                    questionsContainer.appendChild(questionDiv);
+                });
+            }else {
+                console.debug('No topicsAndQuestions data received. Keeping previous content.');
+                // Do nothing, keep the previous content if topicsAndQuestions is empty or null
+            }
+        }
+        if (resJson.type === 'question_answer') {
+            const answer = resJson.data;
+            const loadingId = resJson.loadingId;
+
+            console.log(`Answer received for loadingId ${loadingId}: ${answer}`);
+
+            // Call displayAnswer function to update the UI
+            displayAnswer(answer, loadingId);
+        }
     };
 
     // 5. Handle WebSocket errors
@@ -316,13 +358,75 @@ function startListening() {
     };
 }
 
-// Function to add selected reply to the selected-list
-function addSelectedReply(reply) {
+
+
+// Function to show selected question an
+function showSelectedQuestionAnswer(question) {
     const selectedList = document.getElementById("selected-list");
-    const replyItem = document.createElement('li');
-    replyItem.textContent = reply;
-    selectedList.appendChild(replyItem);
+
+    // Create a new list item for the selected question
+    const listItem = document.createElement('li');
+    listItem.textContent = `Selected question: ${question}`;
+
+    // Create a new list item for the loading indicator
+    const loadingItem = document.createElement('li');
+    loadingItem.textContent = 'Loading answer...';
+
+    // Assign a unique ID to the loading item so it can be removed later
+    const loadingId = `loading-${Math.random().toString(36).substr(2, 9)}`;
+    loadingItem.id = loadingId;
+
+    // Append the selected question and loading indicator to the list
+    selectedList.appendChild(listItem);
+    selectedList.appendChild(loadingItem);
+
+    console.log(`Sending question: ${question} with loadingId: ${loadingId}`);
+
+    // Send selected question to the backend
+    sendQuestionToBackend(question, loadingId); // Pass the loadingId to track it
 }
+
+// Function to send the selected question to the backend
+function sendQuestionToBackend(question, loadingId) {
+    const message = {
+        type: 'selected_question',
+        data: question,
+        loadingId: loadingId  // Pass the loadingId to track which one to remove later
+    };
+    wsAnalysis.send(JSON.stringify(message));  // Send the message to the backend
+}
+
+
+
+// Function to display the answer and replace the loading indicator
+function displayAnswer(answer, loadingId) {
+    // Find the loading element using the loadingId
+    const loadingElement = document.getElementById(loadingId);
+
+    if (loadingElement) {
+        // Replace the loading indicator with the actual answer
+        loadingElement.textContent = `Answer: ${answer}`;
+    } else {
+        console.error("Loading element not found for id:", loadingId);
+    }
+}
+
+
+
+// Function to sent remaining topics to backend
+function sendRemainingTopicsToBackend(remainingTopics) {
+    const dataToSend = {
+        type: 'remaining_topics',
+        data: remainingTopics
+    };
+
+    // Print the data to the console to check the format
+    console.log("Data being sent to backend:", JSON.stringify(dataToSend));
+
+    // Send the data to the WebSocket server
+    wsAnalysis.send(JSON.stringify(dataToSend));
+}
+
 
 
 function stopRecording() {

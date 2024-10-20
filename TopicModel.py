@@ -89,45 +89,7 @@ class SingletonMeta(type):
 class TopicModel(metaclass=SingletonMeta):
     stopwords = []
 
-    intents0 = {
-            "apply_credit_card": {
-                "keywords": {"apply": 2, "credit card": 3, "application": 2, "process": 1},
-                "patterns": ["apply credit card", "credit card application"]
-            },
-            "enquire credit card miles": {
-                "keywords": {"air miles"},
-                "patterns": [],
-            },
-            "enquire credit card waive": {
-                "keywords": {},
-                "patterns": [""],
-            },
-            "enquire credit card rewards": {
-                "keywords": {},
-                "patterns": [""],
-            },
-            "enquire credit card cashback": {
-                "keywords": {},
-                "patterns": [""],
-            },
-            "enquire credit card plans": {
-                "keywords": {},
-                "patterns": [""],
-            },
-            "compare credit cards": {
-                "keywords": {},
-                "patterns": [""],
-            },
-            "enquire property loan application": {
-                "keywords": {},
-                "patterns": [""],
-            },
-            "enquire ": {
-                "keywords": {},
-                "patterns": [""],
-            },
-
-        }
+    questions_answers = {}
     
     intents = {
             "apply credit card": {
@@ -244,7 +206,7 @@ class TopicModel(metaclass=SingletonMeta):
                 "content": [
                     {
                     "type": "text",
-                    "text": "You are a customer service representative for financial information across banks in Singapore. Summarise your response within 256 words."
+                    "text": "You are a customer service representative for financial information across banks in Singapore. Summarise your response within 20 words."
                     }
                 ]
                 },
@@ -259,7 +221,7 @@ class TopicModel(metaclass=SingletonMeta):
                 }
             ],
             temperature=1,
-            max_tokens=256,
+            max_tokens=20,
             top_p=1,
             frequency_penalty=0,
             presence_penalty=0,
@@ -304,7 +266,7 @@ class TopicModel(metaclass=SingletonMeta):
                 "content": [
                     {
                     "type": "text",
-                    "text": "You are a customer service representative for financial information across banks in Singapore. Summarise your response within 100 words."
+                    "text": "You are a customer service representative for financial information across banks in Singapore. Summarise your response within 50 words."
                     }
                 ]
                 },
@@ -318,7 +280,7 @@ class TopicModel(metaclass=SingletonMeta):
                 ]
                 }
             ],
-            max_tokens=110,
+            max_tokens=80,
             n=1,
             stop=None,
             temperature=0.7
@@ -938,9 +900,19 @@ class TopicModel(metaclass=SingletonMeta):
         response = self.getResponseForQuestions(prompt)
         #print("RESPONSE 2 = ", response)
         questions = self.extractListFromResponse(response)
+        
+        for question in questions:
+            self.questions_answers[question] = self.getResponseForQuestions(question)
 
         ##print(questions)
         return questions
+    
+    def getAnswerFromQuestion(self, question):
+        print("IN getAnswerFromQuestion!!!!")
+        return self.questions_answers[question]
+
+    def getQuestionAnswerList(self):
+        return self.questions_answers
 
     # Function to get generated questions for each topic.
     # Return a dictionary in the format: 

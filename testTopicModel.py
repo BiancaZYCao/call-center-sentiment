@@ -97,7 +97,7 @@ def user_demo():
 
 ####### Function Calls for Testing ########
 
-#testGetTopics()
-#testGetTopicsAndQuestions()
-testWithTranscript()
-#user_demo()
+# testGetTopics()
+# testGetTopicsAndQuestions()
+# testWithTranscript()
+# user_demo()
