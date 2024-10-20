@@ -564,8 +564,7 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
         audio_score_list = []
         timeline_data_list = []
 
-
-        # 处理 WebSocket 消息
+        # handle WebSocket message
         async def handle_websocket_messages():
             nonlocal cache_text_client
             while True:
@@ -576,14 +575,20 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                 # process user selected question
                 if message_data.get('type') == 'selected_question':
                     selected_question = message_data.get('data')
+                    loading_id = message_data.get('loadingId')  # Get the loadingId from the frontend
+
+                    # Fetch the answer (replace with your actual logic)
                     res = tm.getResponseForQuestions(selected_question)
-                    # res = tm.getAnswerFromQuestion(selected_question)
+
+                    # Prepare the response, including the loadingId
                     response = {
                         'type': 'question_answer',
-                        'data': res
+                        'data': res,
+                        'loadingId': loading_id  # Pass the loadingId back to the frontend
                     }
-                    await websocket_analysis.send_json(response)
 
+                    # Send the response back to the frontend
+                    await websocket_analysis.send_json(response)
 
 
         #process result after STT and analysis

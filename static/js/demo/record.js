@@ -280,12 +280,15 @@ function startListening() {
                 }
             }
         }
+
+
         // Handle topicsAndQuestions response
         if (resJson.type === "topicsAndQuestions") {
             var topicsAndQuestions = textData ? JSON.parse(textData) : null;
             console.debug('topicsAndQuestions received:', topicsAndQuestions);
 
-            if (topicsAndQuestions) {
+            // // Only update if topicsAndQuestions is not empty or null
+            if ((topicsAndQuestions && Object.keys(topicsAndQuestions).length > 0)) {
                 // Clear previous content in the questions container
                 const questionsContainer = document.getElementById("questions-container");
                 questionsContainer.innerHTML = '';
@@ -297,30 +300,50 @@ function startListening() {
                     topicHeader.textContent = topic;
                     questionsContainer.appendChild(topicHeader);
 
-                    // Create a list for questions under this topic
-                    const questionList = document.createElement('ul');
+                    // Create a div to contain questions with checkboxes
+                    const questionDiv = document.createElement('div');
 
                     topicsAndQuestions[topic].forEach(question => {
-                        const questionItem = document.createElement('li');
-                        questionItem.textContent = question;
+                        // Create a label for the checkbox and question text
+                        const label = document.createElement('label');
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.name = `question-${topic}`;
+                        checkbox.value = question;
 
-                        // Add a click event to the question item to select it
-                        questionItem.onclick = function () {
-                            // send selected question to backend get answers
-                            sendQuestionToBackend(question);
-                            addSelectedReply(question);
+                        // Add an event listener for each checkbox
+                        checkbox.onchange = function () {
+                            if (this.checked) {
+                                // Send selected question to the backend and display selected question
+                                sendQuestionToBackend(question);
+                                showSelectedQuestionAnswer(question);
+                            }
                         };
 
-                        questionList.appendChild(questionItem);
+                        // Append the checkbox and the question text to the label
+                        label.appendChild(checkbox);
+                        label.appendChild(document.createTextNode(` ${question}`));
+
+                        // Add a line break for each question
+                        questionDiv.appendChild(label);
+                        questionDiv.appendChild(document.createElement('br'));
                     });
 
-                    questionsContainer.appendChild(questionList);
+                    questionsContainer.appendChild(questionDiv);
                 });
+            }else {
+                console.debug('No topicsAndQuestions data received. Keeping previous content.');
+                // Do nothing, keep the previous content if topicsAndQuestions is empty or null
             }
         }
         if (resJson.type === 'question_answer') {
             const answer = resJson.data;
-            displayAnswer(answer);
+            const loadingId = resJson.loadingId;
+
+            console.log(`Answer received for loadingId ${loadingId}: ${answer}`);
+
+            // Call displayAnswer function to update the UI
+            displayAnswer(answer, loadingId);
         }
     };
 
@@ -335,44 +358,57 @@ function startListening() {
     };
 }
 
-// sent selected_question to backend
-function sendQuestionToBackend(question) {
-    const message = {
-        type: 'selected_question',
-        data: question
-    };
-    wsAnalysis.send(JSON.stringify(message));
-}
 
-function addSelectedReply(question) {
+
+// Function to show selected question an
+function showSelectedQuestionAnswer(question) {
     const selectedList = document.getElementById("selected-list");
-    selectedList.innerHTML = '';  // clear previous content
 
+    // Create a new list item for the selected question
     const listItem = document.createElement('li');
     listItem.textContent = `Selected question: ${question}`;
 
-    // 添加一个加载指示器
+    // Create a new list item for the loading indicator
     const loadingItem = document.createElement('li');
     loadingItem.textContent = 'Loading answer...';
-    loadingItem.id = 'loading-answer';
 
+    // Assign a unique ID to the loading item so it can be removed later
+    const loadingId = `loading-${Math.random().toString(36).substr(2, 9)}`;
+    loadingItem.id = loadingId;
+
+    // Append the selected question and loading indicator to the list
     selectedList.appendChild(listItem);
     selectedList.appendChild(loadingItem);
+
+    console.log(`Sending question: ${question} with loadingId: ${loadingId}`);
+
+    // Send selected question to the backend
+    sendQuestionToBackend(question, loadingId); // Pass the loadingId to track it
 }
 
-function displayAnswer(answer) {
-    const selectedList = document.getElementById("selected-list");
+// Function to send the selected question to the backend
+function sendQuestionToBackend(question, loadingId) {
+    const message = {
+        type: 'selected_question',
+        data: question,
+        loadingId: loadingId  // Pass the loadingId to track which one to remove later
+    };
+    wsAnalysis.send(JSON.stringify(message));  // Send the message to the backend
+}
 
-    // loading answer
-    const loadingItem = document.getElementById('loading-answer');
-    if (loadingItem) {
-        selectedList.removeChild(loadingItem);
+
+
+// Function to display the answer and replace the loading indicator
+function displayAnswer(answer, loadingId) {
+    // Find the loading element using the loadingId
+    const loadingElement = document.getElementById(loadingId);
+
+    if (loadingElement) {
+        // Replace the loading indicator with the actual answer
+        loadingElement.textContent = `Answer: ${answer}`;
+    } else {
+        console.error("Loading element not found for id:", loadingId);
     }
-
-    // display answer
-    const listItem = document.createElement('li');
-    listItem.textContent = `Answer: ${answer}`;
-    selectedList.appendChild(listItem);
 }
 
 
