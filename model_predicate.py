@@ -72,7 +72,7 @@ selected_feature_name = selected_feature_names128
 len(selected_feature_name)
 ### define the selected feature names same as trained model!!!
 
-print(selected_feature_name)
+# print(selected_feature_name)
 
 """### Load Model """
 model_file_dir='./models'
@@ -100,12 +100,12 @@ def pickle_model_predict(model_cls, test_instance):
         instance_input = np.array(test_instance).reshape(1, -1)
         # Check if there are any NaN values in the instance input
         if np.isnan(instance_input).any():
-            print("[ERROR] Skipping prediction due to NaN values in test instance.")
+            print("ERROR:model_predicate: Audio model predict - Skipping prediction due to NaN values in test instance.")
             return 0, 0
         pred_cls = model_cls.predict(instance_input)[0]
         predictions_proba = model_cls.predict_proba(instance_input)
         max_prob = np.round(predictions_proba.max(axis=1), 4)[0]
-        print("[pickle CLS MODEL]: ", pred_cls)
+        # print("[pickle CLS MODEL]: ", pred_cls)
         pred_score = max_prob * cls_sign_map[pred_cls]
         return max_prob, pred_score
     except Exception as e:
@@ -127,11 +127,11 @@ def calc_feature_all(filename):
 
     # 获取音频的实际时长
     audio_duration = librosa.get_duration(y=X_full, sr=sample_rate)
-    print(f"Audio duration for {filename}: {audio_duration:.2f} seconds")
+    # print(f"Audio duration for {filename}: {audio_duration:.2f} seconds")
 
     # 丢弃小于 0.128 秒的音频文件
     if audio_duration < 0.128:
-        print(f"Skipping file {filename} because it is too short (<0.128s).")
+        # print(f"Skipping file {filename} because it is too short (<0.128s).")
         return
 
     # 如果音频小于 0.2 秒，设置 duration_to_use 为 0.2 秒，否则使用实际时长
@@ -143,7 +143,7 @@ def calc_feature_all(filename):
 
     # 检查音频是否为空
     if len(X) == 0:
-        print(f"Skipping file {filename} because it is empty.")
+        # print(f"Skipping file {filename} because it is empty.")
         return
 
     mfccs_60 = librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=20)
@@ -250,18 +250,19 @@ def preprocess_signal(x_input):
 
     # check input if is empty
     if len(x_input) == 0:
-        print(f"Skipping because input is empty.")
+        # print(f"Skipping because input is empty.")
         return
 
     # get duration
     audio_duration = librosa.get_duration(y=x_input, sr=sample_rate)
-    print(f"Audio duration for : {audio_duration:.2f} seconds")
+    # print(f"Audio duration for : {audio_duration:.2f} seconds")
     # dump if <0.128 too short
     if audio_duration < 0.128:
-        print(f"Skipping because input is too short (<0.128s).")
+        # print(f"Skipping because input is too short (<0.128s).")
         return
     if audio_duration > 5:
-        print(f"[WARNING] input binary signal last more than 5 seconds.")
+        # print(f"[WARNING] input binary signal last more than 5 seconds.")
+        pass
 
     # Determine the number of samples in the current audio
     current_samples = len(x_input)
@@ -270,7 +271,7 @@ def preprocess_signal(x_input):
         padding_samples = min_duration_samples - current_samples
         # Pad with zeros at the end of the audio signal
         x = np.pad(x_input, (0, padding_samples), mode='constant')
-        print(f"Audio was padded to {min_duration_sec} seconds")
+        # print(f"Audio was padded to {min_duration_sec} seconds")
     elif current_samples > max_duration_samples:
         x = x_input[:max_duration_samples]
     else:
@@ -290,20 +291,18 @@ def audio_model_inference(x_input: np.ndarray):
         if not feature_test_instance:
             print("[ATTENTION] - feature_test_instance is none:")
             return None, None
-        print("[TIME] - Feature Extraction takes {:.2f} seconds".format(time.time() - start))
+        # print("[TIME] - Feature Extraction takes {:.2f} seconds".format(time.time() - start))
         # Phase 1
         # final_score = calculate_final_score(test_instance)
         # this semester score - replace [-1,0,1] with scaled max_prob * [-1,0,1]
         sentiment_class_CNN, sentiment_score_CNN = CNN_Model_Predication_New(test_instance)
-        print("CNN done; ", end='')
         sentiment_max_prob_RF, sentiment_score_RF = pickle_model_predict(RF_CLS_MODEL,test_instance)
-        print("RF done; ", end='')
         sentiment_max_prob_LGBM, sentiment_score_LGBM = pickle_model_predict(LGBM_CLS_MODEL, test_instance)
-        print("[TIME] - Audio models takes {:.2f} seconds".format(time.time() - start))
+        # print("[TIME] - Audio models takes {:.2f} seconds".format(time.time() - start))
         combine_score = (sentiment_score_CNN + sentiment_score_RF + sentiment_score_LGBM)/3
         # max_abs_score = max(abs([sentiment_score_CNN, sentiment_score_RF, sentiment_score_LGBM])) # TODO
-        print("[SCORE] CNN {:.2f}   RF {:.2f}   LGBM {:.2f}   final {:.2f}".format(
-            sentiment_score_CNN, sentiment_score_RF, sentiment_score_LGBM, combine_score))
+        # print("[SCORE] CNN {:.2f}   RF {:.2f}   LGBM {:.2f}   final {:.2f}".format(
+        #     sentiment_score_CNN, sentiment_score_RF, sentiment_score_LGBM, combine_score))
         sentiment_category = determine_sentiment_category(combine_score)
         # print("[TIME] - takes {:.2f} seconds".format(time.time() - start))
         if isinstance(combine_score, (int, float)):  # Check if it's an int or float
@@ -348,7 +347,7 @@ def determine_sentiment_category(combine_score):
         sentiment_category = "Neutral sentiment"
     elif combine_score > 0.3:
         sentiment_category = "Positive sentiment"
-    print("determine sentiment category:", sentiment_category)
+    # print("determine sentiment category:", sentiment_category)
     return sentiment_category
 
 # endregion

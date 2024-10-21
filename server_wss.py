@@ -233,16 +233,14 @@ reg_spks = reg_spk_init(reg_spks_files)
 
 def process_vad_audio(audio, sv=True, lang="en"):
     speaker_label = "Client"
-    # logger.debug(f"[process_vad_audio] process audio(length: {len(audio)})")
     if not sv:
         return speaker_label, asr_pipeline(audio, language=lang.strip())
 
-    hit = False
     for k, v in reg_spks.items():
         res_sv = sv_pipeline([audio, v["data"]], thr=config.sv_thr)
-        logger.warning(f"[speaker check] {k}: {res_sv}")
+        # logger.debug(f"[speaker check] {k}: {res_sv}")
         if res_sv["score"] >= config.sv_thr:
-            # logger.warning(f"[speaker check identified] {k}: score at {res_sv['score']}")
+            logger.debug(f"[speaker check identified] {k}: score at {res_sv['score']}")
             speaker_label = "Agent"
             break
 
@@ -321,6 +319,9 @@ cache = {}
 stt_queue = asyncio.Queue()
 tm = TopicModel()
 end_time_list = []
+cache_text_client = ""
+audio_score_list = []
+timeline_data_list = []
 lock = asyncio.Lock()
 
 # Real-time ASR and Speaker detection
@@ -377,7 +378,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                         if last_vad_beg > -1 and last_vad_end > -1:
                             # logger.debug(f"vad segment: {[last_vad_beg, last_vad_end]}")
                             # try to use real timestamps
-                            logger.debug(f"vad segment ms coordinates: {[last_vad_beg/1000, last_vad_end/1000]}")
+                            # logger.debug(f"vad segment ms coordinates: {[last_vad_beg/1000, last_vad_end/1000]}")
                             start = time.time()
                             last_vad_beg -= offset
                             last_vad_end -= offset
@@ -388,7 +389,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                             vad_audio_chunk = audio_vad[beg:end]
 
                             speaker_label, transcript_result = process_vad_audio(audio_vad[beg:end], sv, lang)  # todo: async
-                            print("[TIME] - STT takes {:.2f} seconds".format(time.time() - start))
+                            # logging.info("[TIME] - STT takes {:.2f} seconds".format(time.time() - start))
                             # logger.debug(f"[process_vad_audio] {speaker_label}: {transcript_result}")
 
                             # Parameters for sliding window
@@ -408,6 +409,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                             # logger.debug(f"VAD Chunk duration: {len(vad_audio_chunk)/16000}")
                             # Calculate how many inference steps are required
                             inference_time_required = len(vad_audio_chunk) // (window_size_samples // 2) + 1
+                            final_audio_score, final_audio_class = 0, "Neutral sentiment"
 
                             # Iterate over the long vad_audio_chunk with sliding windows
                             for i in range(inference_time_required):
@@ -446,7 +448,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                     temp_end_time_list.append(offset / 1000 - len(vad_audio_chunk) / config.sample_rate)
                                 temp_score_list.append(final_audio_score)
                                 temp_end_time_list.append(end_time_offset)
-                                logger.warning(f"[DEBUG] AUDIO Result: {chunk_start_time_relative}, "
+                                logger.debug(f"[DEBUG] AUDIO Result: {chunk_start_time_relative}, "
                                                f"{chunk_end_time_relative}, {end_time_offset} : "
                                                f"{final_audio_score} ")
 
@@ -481,7 +483,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                     response_audio_data_str = json.dumps(response_audio_data)
 
                                     # Optionally send back this response via WebSocket or handle further
-                                    logger.warning(f"Audio inference result: {response_audio_data_str}")
+                                    logger.debug(f"Audio inference result: {response_audio_data_str}")
                                     response_audio = TranscriptionResponse(
                                         code=0,
                                         msg=f"success",
@@ -552,11 +554,10 @@ def update_final_scores(final_score_list, end_time_list, time_points, new_scores
 
 
 
-
 @app.websocket("/ws/analysis")
 async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
     await websocket_analysis.accept()
-    global final_score_list, end_time_list
+    global cache_text_client, audio_score_list, timeline_data_list, final_score_list, end_time_list
     try:
         cache_text_client = ""
         audio_score_list = []
@@ -564,93 +565,102 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
 
         # handle WebSocket message
         async def handle_websocket_messages():
-            nonlocal cache_text_client
-            while True:
-                # receive frontend data - selected question
-                message = await websocket_analysis.receive_text()
-                message_data = json.loads(message)
+            try:
+                while True:
+                    # receive frontend data - selected question
+                    message = await websocket_analysis.receive_text()
+                    message_data = json.loads(message)
+                    # process user selected question
+                    if message_data.get('type') == 'selected_question':
+                        selected_question = message_data.get('data')
+                        loading_id = message_data.get('loadingId')  # Get the loadingId from the frontend
+                        print("received request for RAG answer:", selected_question)
 
-                # process user selected question
-                if message_data.get('type') == 'selected_question':
-                    selected_question = message_data.get('data')
-                    loading_id = message_data.get('loadingId')  # Get the loadingId from the frontend
+                        # Fetch the answer (replace with your actual logic)
+                        # res = tm.getResponseForQuestions(selected_question)
+                        res = tm.getAnswerFromQuestion(selected_question)
 
-                    # Fetch the answer (replace with your actual logic)
-                    # res = tm.getResponseForQuestions(selected_question)
-                    res = tm.getAnswerFromQuestion(selected_question)
-
-                    # Prepare the response, including the loadingId
-                    response = {
-                        'type': 'question_answer',
-                        'data': res,
-                        'loadingId': loading_id  # Pass the loadingId back to the frontend
-                    }
-
-                    # Send the response back to the frontend
-                    await websocket_analysis.send_json(response)
-
+                        # Prepare the response, including the loadingId
+                        response = {
+                            'type': 'question_answer',
+                            'data': res,
+                            'loadingId': loading_id  # Pass the loadingId back to the frontend
+                        }
+                        print("sending RAG result:", res)
+                        # Send the response back to the frontend
+                        await websocket_analysis.send_json(response)
+            except WebSocketDisconnect:
+                logging.error("WebSocket Analysis disconnected in handle_websocket_messages()")
+                return
+            except Exception as e:
+                logging.error(f"Error in process_stt_results: {e}")
 
         #process result after STT and analysis
         async def process_stt_results():
-            nonlocal cache_text_client, audio_score_list, timeline_data_list
+            global cache_text_client, audio_score_list, timeline_data_list, final_score_list, end_time_list
+            try:
+                while True:
+                    # Wait to get STT result from the queue
+                    stt_result_dict = await stt_queue.get()  # Waits until an STT result is available
+                    stt_result_text = stt_result_dict["stt_text"]
+                    audio_score_list += stt_result_dict["audio_score_data"]
+                    timeline_data_list += stt_result_dict["timeline_data"]
+                    average_audio_score = round(sum(audio_score_list) / len(audio_score_list), 2)
 
-            while True:
-                # Wait to get STT result from the queue
-                stt_result_dict = await stt_queue.get()  # Waits until an STT result is available
-                stt_result_text = stt_result_dict["stt_text"]
-                audio_score_list += stt_result_dict["audio_score_data"]
-                timeline_data_list += stt_result_dict["timeline_data"]
-                average_audio_score = round(sum(audio_score_list) / len(audio_score_list), 2)
+                    received_at = datetime.now(singapore_tz).isoformat()
+                    cache_text_client += stt_result_text + " "
 
-                received_at = datetime.now(singapore_tz).isoformat()
-                cache_text_client += stt_result_text + " "
+                    if len(cache_text_client.split(" ")) >= 10:
+                        logging.info(f"[TEXT] Processing sentiment for: {cache_text_client}")
+                        text_sentiment_result = text_sentiment_inference(cache_text_client)
+                        response_sentiment = AnalysisResponse(
+                            data=text_sentiment_result,
+                            type="text_sentiment",
+                            timestamp=str(received_at)
+                        )
+                        await websocket_analysis.send_json(response_sentiment.model_dump())
 
+                        # adjust sentiment score
+                        adjusted_audio_scores = adjust_audio_scores(audio_score_list, text_sentiment_result)
+                        if adjusted_audio_scores != audio_score_list:
+                            async with lock:
+                                logging.warning("[ADJ] adjusting final score list into: %s", adjusted_audio_scores)
+                                final_score_list = update_final_scores(final_score_list, end_time_list,
+                                                                       timeline_data_list, adjusted_audio_scores)
 
-                if len(cache_text_client.split(" ")) >= 7:
-                    print(f"Processing sentiment for: {cache_text_client}")
-                    text_sentiment_result = text_sentiment_inference(cache_text_client)
-                    response_sentiment = AnalysisResponse(
-                        data=text_sentiment_result,
-                        type="text_sentiment",
-                        timestamp=str(received_at)
-                    )
-                    await websocket_analysis.send_json(response_sentiment.model_dump())
+                        # perform topic modeling
+                        topic_results = tm.getTopics(cache_text_client)
+                        topic_results_str = json.dumps(list(set(topic_results)))
+                        response_topic = AnalysisResponse(
+                            data=topic_results_str,
+                            type="topics",
+                            timestamp=received_at
+                        )
+                        await websocket_analysis.send_json(response_topic.model_dump())
 
-                    # adjust sentiment score
-                    adjusted_audio_scores = adjust_audio_scores(audio_score_list, text_sentiment_result)
-                    if adjusted_audio_scores != audio_score_list:
-                        async with lock:
-                            final_score_list = update_final_scores(final_score_list, end_time_list,
-                                                                   timeline_data_list, adjusted_audio_scores)
+                        # perform topic and question generated
+                        topics_and_questions = tm.getTopicsAndQuestions()
+                        topics_and_questions_str = json.dumps(topics_and_questions)
+                        response_topic_and_questions = AnalysisResponse(
+                            data=topics_and_questions_str,
+                            type="topicsAndQuestions",
+                            timestamp=received_at
+                        )
+                        await websocket_analysis.send_json(response_topic_and_questions.model_dump())
 
-                    # perform topic modeling
-                    topic_results = tm.getTopics(cache_text_client)
-                    topic_results_str = json.dumps(list(set(topic_results)))
-                    response_topic = AnalysisResponse(
-                        data=topic_results_str,
-                        type="topics",
-                        timestamp=received_at
-                    )
-                    await websocket_analysis.send_json(response_topic.model_dump())
-
-                    # perform topic and question generated
-                    topics_and_questions = tm.getTopicsAndQuestions()
-                    topics_and_questions_str = json.dumps(topics_and_questions)
-                    response_topic_and_questions = AnalysisResponse(
-                        data=topics_and_questions_str,
-                        type="topicsAndQuestions",
-                        timestamp=received_at
-                    )
-                    await websocket_analysis.send_json(response_topic_and_questions.model_dump())
-
-                    cache_text_client = ""  # reset
-                    audio_score_list = []
-                    timeline_data_list = []
-
+                        cache_text_client = ""  # reset
+                        audio_score_list = []
+                        timeline_data_list = []
+            except WebSocketDisconnect:
+                logging.error("WebSocket Analysis disconnected in process_stt_results()")
+                return
+            except Exception as e:
+                logging.error(f"Error in process_stt_results: {e}")
 
         await asyncio.gather(
             handle_websocket_messages(),
-            process_stt_results()
+            process_stt_results(),
+            return_exceptions=True  # Ensures both tasks stop on WebSocket disconnection
         )
 
     except WebSocketDisconnect:

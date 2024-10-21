@@ -157,12 +157,12 @@ function startRecording() {
             if (type === 'STT') {
                 startFetchChart = true;
                 // transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
-                if (speaker === speaker_last) {
-                    transcriptionResult.innerHTML += ' ' + textData || ' ';
-                } else {
-                    speaker_last = speaker;
-                    transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
-                }
+                // if (speaker === speaker_last) {
+                //     transcriptionResult.innerHTML += ' ' + textData || ' ';
+                // } else {
+                //     speaker_last = speaker;
+                //     transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
+                // }
             }
         } catch (err) {
             console.error('Failed to parse websocket message:', err);
