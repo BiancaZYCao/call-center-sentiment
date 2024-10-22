@@ -1,6 +1,7 @@
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 import torch
-
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # Load the fine-tuned model and tokenizer from the saved directory
 model_path = './fine_tuned_distilbert_finetuned_e3/fine_tuned_distilbert_finetuned_e3'
 model = AutoModelForSequenceClassification.from_pretrained(model_path)

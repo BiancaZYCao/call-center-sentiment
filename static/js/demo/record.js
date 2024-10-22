@@ -213,9 +213,16 @@ function startListening() {
                     })
                     .then(data => {
                         //update chart
-                        var endTimeList = data.end_time;  // Extract end_time from the response data
-                        var scoreList = data.final_score;  // Extract final_score from the response data
-                        updateChart(endTimeList, scoreList);  // Call the function to update chart with new data
+                        // Ensure the data contains valid arrays for end_time and final_score
+                        const endTimeList = Array.isArray(data.end_time) ? data.end_time : [];
+                        const scoreList = Array.isArray(data.final_score) ? data.final_score : [];
+
+                        // Ensure both lists are not empty before updating the chart
+                        if (endTimeList.length > 0 && scoreList.length > 0) {
+                            updateChart(endTimeList, scoreList);  // Call the function to update the chart with valid data
+                        } else {
+                            console.warn("Received empty or invalid data for chart update.");
+                        }
                     })
                     .catch(error => {
                         console.error('Error chart update:', error);  // Log any errors that occur during the fetch
@@ -338,7 +345,7 @@ function startListening() {
                         checkbox.onchange = function () {
                             if (this.checked) {
                                 // Send selected question to the backend and display selected question
-                                sendQuestionToBackend(question);
+                                // sendQuestionToBackend(question);
                                 showSelectedQuestionAnswer(question);
                             }
                         };
@@ -359,15 +366,15 @@ function startListening() {
                 // Do nothing, keep the previous content if topicsAndQuestions is empty or null
             }
         }
-        if (resJson.type === 'question_answer') {
-            const answer = resJson.data;
-            const loadingId = resJson.loadingId;
-
-            console.log(`Answer received for loadingId ${loadingId}: ${answer}`);
-
-            // Call displayAnswer function to update the UI
-            displayAnswer(answer, loadingId);
-        }
+        // if (resJson.type === 'question_answer') {
+        //     const answer = resJson.data;
+        //     const loadingId = resJson.loadingId;
+        //
+        //     console.log(`Answer received for loadingId ${loadingId}: ${answer}`);
+        //
+        //     // Call displayAnswer function to update the UI
+        //     displayAnswer(answer, loadingId);
+        // }
     };
 
     // 5. Handle WebSocket errors
@@ -406,8 +413,11 @@ function showSelectedQuestionAnswer(question) {
     console.log(`Sending question: ${question} with loadingId: ${loadingId}`);
 
     // Send selected question to the backend
-    sendQuestionToBackend(question, loadingId); // Pass the loadingId to track it
+    // sendQuestionToBackend(question, loadingId); // Pass the loadingId to track it
+    fetchQuestionAnswer(question, loadingId);
+
 }
+
 
 // Function to send the selected question to the backend
 function sendQuestionToBackend(question, loadingId) {
@@ -417,6 +427,39 @@ function sendQuestionToBackend(question, loadingId) {
         loadingId: loadingId  // Pass the loadingId to track which one to remove later
     };
     wsAnalysis.send(JSON.stringify(message));  // Send the message to the backend
+}
+
+
+async function fetchQuestionAnswer(question, loadingId) {
+    try {
+        const message = {
+            type: 'selected_question',
+            data: question,
+            loadingId: loadingId  // Pass the loadingId to track the request
+        };
+        const response = await fetch('http://127.0.0.1:8000/get-answer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(message)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const resJson = await response.json();
+        const answer = resJson.data;
+        // const loadingId = resJson.loadingId;
+        console.log(`Answer received for loadingId ${loadingId}: ${answer}`);
+
+        // Call displayAnswer function to update the UI
+        displayAnswer(answer, loadingId);
+        // Handle the result and update the UI with the answer (result.data)
+    } catch (error) {
+        console.error("Error fetching question answer:", error);
+    }
 }
 
 

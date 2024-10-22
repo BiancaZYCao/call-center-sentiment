@@ -322,7 +322,8 @@ end_time_list = []
 cache_text_client = ""
 audio_score_list = []
 timeline_data_list = []
-lock = asyncio.Lock()
+lock_score_list = asyncio.Lock()
+lock_tm = asyncio.Lock()
 
 # Real-time ASR and Speaker detection
 @app.websocket("/ws/transcribe")
@@ -467,12 +468,12 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                                 await websocket_trans.send_json(response.model_dump())
 
                                 if speaker_label == "Agent":
-                                    async with lock:
+                                    async with lock_score_list:
                                         end_time_list += [round(x, 2) for x in temp_end_time_list if x is not None]
                                         final_score_list += [None] * len(temp_end_time_list)
 
                                 if speaker_label == "Client":
-                                    async with lock:
+                                    async with lock_score_list:
                                         final_score_list += [round(x, 3) for x in temp_score_list if x is not None]
                                         end_time_list += [round(x, 2) for x in temp_end_time_list if x is not None]
                                     # Create response for this audio chunk
@@ -507,8 +508,8 @@ async def websocket_endpoint(websocket_trans: WebSocket):
                             audio_vad = audio_vad[end:]
                             last_vad_beg = last_vad_end = -1
 
-    except WebSocketDisconnect:
-        logger.warning("WebSocket Transcribe disconnected")
+    except WebSocketDisconnect as e:
+        logger.warning(f"WebSocket Transcribe disconnected with close code: {e.code}")
         logger.warning(f"[END] final_score_list: {final_score_list}")
         logger.warning(f"[END] end_time_list: {end_time_list}")
     except Exception as e:
@@ -563,12 +564,15 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
         audio_score_list = []
         timeline_data_list = []
 
-        # handle WebSocket message
+        # handle WebSocket message moved to API endpoint
         async def handle_websocket_messages():
             try:
                 while True:
+                    await websocket_analysis.send_text("ping")
+                    await asyncio.sleep(30)
                     # receive frontend data - selected question
                     message = await websocket_analysis.receive_text()
+                    print("received ws_msg handle_websocket_messages()")
                     message_data = json.loads(message)
                     # process user selected question
                     if message_data.get('type') == 'selected_question':
@@ -577,8 +581,8 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                         print("received request for RAG answer:", selected_question)
 
                         # Fetch the answer (replace with your actual logic)
-                        # res = tm.getResponseForQuestions(selected_question)
-                        res = tm.getAnswerFromQuestion(selected_question)
+                        async with lock_tm:
+                            res = tm.getAnswerFromQuestion(selected_question)
 
                         # Prepare the response, including the loadingId
                         response = {
@@ -589,15 +593,16 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                         print("sending RAG result:", res)
                         # Send the response back to the frontend
                         await websocket_analysis.send_json(response)
-            except WebSocketDisconnect:
-                logging.error("WebSocket Analysis disconnected in handle_websocket_messages()")
+            except WebSocketDisconnect as ws_err:
+                logging.error(f"WebSocket Analysis disconnected in handle_websocket_messages() "
+                              f"with close code: {ws_err.code}")
                 return
             except Exception as e:
                 logging.error(f"Error in process_stt_results: {e}")
 
         #process result after STT and analysis
         async def process_stt_results():
-            global cache_text_client, audio_score_list, timeline_data_list, final_score_list, end_time_list
+            global cache_text_client, audio_score_list, timeline_data_list, final_score_list, end_time_list, tm
             try:
                 while True:
                     # Wait to get STT result from the queue
@@ -623,13 +628,14 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                         # adjust sentiment score
                         adjusted_audio_scores = adjust_audio_scores(audio_score_list, text_sentiment_result)
                         if adjusted_audio_scores != audio_score_list:
-                            async with lock:
+                            async with lock_score_list:
                                 logging.warning("[ADJ] adjusting final score list into: %s", adjusted_audio_scores)
                                 final_score_list = update_final_scores(final_score_list, end_time_list,
                                                                        timeline_data_list, adjusted_audio_scores)
 
                         # perform topic modeling
-                        topic_results = tm.getTopics(cache_text_client)
+                        async with lock_tm:
+                            topic_results = tm.getTopics(cache_text_client)
                         topic_results_str = json.dumps(list(set(topic_results)))
                         response_topic = AnalysisResponse(
                             data=topic_results_str,
@@ -639,7 +645,8 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                         await websocket_analysis.send_json(response_topic.model_dump())
 
                         # perform topic and question generated
-                        topics_and_questions = tm.getTopicsAndQuestions()
+                        async with lock_tm:
+                            topics_and_questions = tm.getTopicsAndQuestions()
                         topics_and_questions_str = json.dumps(topics_and_questions)
                         response_topic_and_questions = AnalysisResponse(
                             data=topics_and_questions_str,
@@ -651,20 +658,21 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                         cache_text_client = ""  # reset
                         audio_score_list = []
                         timeline_data_list = []
-            except WebSocketDisconnect:
-                logging.error("WebSocket Analysis disconnected in process_stt_results()")
+            except WebSocketDisconnect as ws_err:
+                logging.error(f"WebSocket Analysis disconnected in process_stt_results() "
+                              f"with close code: {ws_err.code}")
                 return
-            except Exception as e:
-                logging.error(f"Error in process_stt_results: {e}")
+            except Exception as err:
+                logging.error(f"Error in process_stt_results: {err}")
 
         await asyncio.gather(
-            handle_websocket_messages(),
+            # handle_websocket_messages(),
             process_stt_results(),
             return_exceptions=True  # Ensures both tasks stop on WebSocket disconnection
         )
 
-    except WebSocketDisconnect:
-        logger.warning("WebSocket Analysis disconnected")
+    except WebSocketDisconnect as e:
+        logger.warning(f"WebSocket Analysis disconnected with close code: {e.code}")
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         await websocket_analysis.close()
@@ -693,6 +701,42 @@ async def update_chart():
         raise HTTPException(status_code=500, detail=f"Error updating chart: {str(e)}")
 
 
+# Define the request model (to handle the incoming JSON request)
+class QuestionRequest(BaseModel):
+    type: str
+    data: str
+    loadingId: str
+
+
+@app.post("/get-answer")
+async def get_rag_answer(request: QuestionRequest):
+    if request.type != "selected_question":
+        raise HTTPException(status_code=400, detail="Invalid request type")
+
+    selected_question = request.data
+    loading_id = request.loadingId
+
+    # Log the received question
+    print(f"Received request for RAG answer: {selected_question}, loadingId: {loading_id}")
+
+    # Fetch the answer from the tm model
+    try:
+        async with lock_tm:  # Use the lock to avoid concurrency issues with the tm instance
+            res = tm.getAnswerFromQuestion(selected_question)
+
+        # Prepare and return the response
+        response = {
+            "type": "question_answer",
+            "data": res,
+            "loadingId": loading_id  # Pass the loadingId back to the frontend
+        }
+        print(f"Sending RAG result: {res}")
+        return response
+    except Exception as e:
+        # Handle any errors that occur during fetching the answer
+        print(f"Error fetching answer: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching answer")
+
 
 
 # run server
@@ -704,4 +748,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # uvicorn.run(app, host="0.0.0.0", port=args.port, ssl_certfile=args.certfile, ssl_keyfile=args.keyfile)
-    uvicorn.run(app, host="127.0.0.1", port=args.port)
+    uvicorn.run(app, host="127.0.0.1", port=args.port, timeout_keep_alive=1200)

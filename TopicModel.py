@@ -34,6 +34,9 @@ from bertopic import BERTopic
 from transformers import LlamaForCausalLM, LlamaTokenizer, LlamaTokenizerFast
 #from huggingface_hub import login
 
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 # Download NLTK stopwords
 nltk.download('stopwords')
 
@@ -234,17 +237,17 @@ class TopicModel(metaclass=SingletonMeta):
         return response.choices[0].message.content
     
 
-    def getResponseForQuestions4(self, input_text):
-        # Get the retrieved context from the index
-        response = self.generate_response(input_text)
-        questions_list = response
-        # Check if the result is a list
-        #if not isinstance(response, list):
-        #    questions_list = [line.strip("- ").strip() for line in response.strip().split("\n") if line.strip()]
-
-        #print("questions_list = ", questions_list)
-
-        return questions_list
+    # def getResponseForQuestions4(self, input_text):
+    #     # Get the retrieved context from the index
+    #     response = self.generate_response(input_text)
+    #     questions_list = response
+    #     # Check if the result is a list
+    #     #if not isinstance(response, list):
+    #     #    questions_list = [line.strip("- ").strip() for line in response.strip().split("\n") if line.strip()]
+    #
+    #     #print("questions_list = ", questions_list)
+    #
+    #     return questions_list
 
     # Function to get response from RAG based on the question or prompt.
     # Parameters:
@@ -322,6 +325,7 @@ class TopicModel(metaclass=SingletonMeta):
         #return retrieved_docs[0].text
         return retrieved_docs
 
+    """
     # Function to generate a response using the model
     def get_response(self, prompt):
         inputs = tokenizer(prompt, return_tensors="pt").to(device)  # Move input to GPU
@@ -355,6 +359,7 @@ class TopicModel(metaclass=SingletonMeta):
 
         #return retrieved_info.response
         return response
+    """
 
     # Function to load the index from storage
     def load_gpt_index(self, storage_path):
@@ -900,7 +905,7 @@ class TopicModel(metaclass=SingletonMeta):
 
 
     def generateQuestionsFromTopic(self, topic, category, num_of_questions=NUM_OF_TOPIC_QUESTIONS):
-        prompt = ("We are on the call with client regarding topic \'" + topic + "\'. Client saying that \'" +
+        prompt = ("We are on the call with client topic likely to be \'" + topic + "\'. Client saying that \'" +
                   self.text_history + "\' ")
         prompt += ("List " + str(num_of_questions) +
                    " follow-up questions that can be helpful to clarify information or reply " +
