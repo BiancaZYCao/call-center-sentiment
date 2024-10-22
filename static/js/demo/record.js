@@ -31,9 +31,6 @@ var isRecording = false;
 // mark previous STT speaker label
 var speaker_last = 'unknown';
 
-
-
-
 // Gauge configuration - 20240909
 var opts = {
     angle: 0.15, // The span of the gauge arc
@@ -160,12 +157,12 @@ function startRecording() {
             if (type === 'STT') {
                 startFetchChart = true;
                 // transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
-                if (speaker === speaker_last) {
-                    transcriptionResult.innerHTML += ' ' + textData || ' ';
-                } else {
-                    speaker_last = speaker;
-                    transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
-                }
+                // if (speaker === speaker_last) {
+                //     transcriptionResult.innerHTML += ' ' + textData || ' ';
+                // } else {
+                //     speaker_last = speaker;
+                //     transcriptionResult.innerHTML += "<br><strong>" + speaker + ":</strong> " + textData;
+                // }
             }
         } catch (err) {
             console.error('Failed to parse websocket message:', err);
@@ -216,9 +213,16 @@ function startListening() {
                     })
                     .then(data => {
                         //update chart
-                        var endTimeList = data.end_time;  // Extract end_time from the response data
-                        var scoreList = data.final_score;  // Extract final_score from the response data
-                        updateChart(endTimeList, scoreList);  // Call the function to update chart with new data
+                        // Ensure the data contains valid arrays for end_time and final_score
+                        const endTimeList = Array.isArray(data.end_time) ? data.end_time : [];
+                        const scoreList = Array.isArray(data.final_score) ? data.final_score : [];
+
+                        // Ensure both lists are not empty before updating the chart
+                        if (endTimeList.length > 0 && scoreList.length > 0) {
+                            updateChart(endTimeList, scoreList);  // Call the function to update the chart with valid data
+                        } else {
+                            console.warn("Received empty or invalid data for chart update.");
+                        }
                     })
                     .catch(error => {
                         console.error('Error chart update:', error);  // Log any errors that occur during the fetch
@@ -241,24 +245,35 @@ function startListening() {
             // Parse the textData to a list
             var topics = textData ? JSON.parse(textData) : null;
             console.debug('topics receieved:', topics)
-            if (topics && topics.length > 0) {
+            if (topics && topics.length > 0) {                
                 remainingTopics = [...topics];
 
                 // Clear the previous tags container
                 const tagsContainer = document.getElementById("tags-container");
                 tagsContainer.innerHTML = '';
 
+
                 // Iterate over the topics array and dynamically generate and insert tags
                 topics.forEach(topic => {
                     const tagElement = document.createElement('div');
                     tagElement.className = 'tag tag-primary';  // Set class name for styling (e.g., tag-success, tag-info, etc.)
                     tagElement.textContent = topic;  // Set the topic as the tag content
+                                        
 
                     // Create a close button for each tag
                     const closeButton = document.createElement('span');
                     closeButton.className = 'close';
                     closeButton.textContent = '×';
                     closeButton.onclick = function () {
+                        // Get the questions container
+                        const questionsContainer = document.getElementById("questions-container");
+
+                        // Check if the questions container exists before proceeding
+                        if (!questionsContainer) {
+                            console.error("Questions container does not exist.");
+                            return; // Stop execution if the container does not exist
+                        }
+
                         // Remove the topic from remainingTopics
                         remainingTopics = remainingTopics.filter(t => t !== topic);
                         console.log('Remaining topics:', remainingTopics);
@@ -266,21 +281,35 @@ function startListening() {
                         // Remove the tag element from the container
                         tagsContainer.removeChild(tagElement);
 
-                        // Send the updated remainingTopics to the backend
-                        sendRemainingTopicsToBackend(remainingTopics);
+                        // Find the corresponding topic section
+                        const topicHeader = Array.from(questionsContainer.querySelectorAll('h6')).find(header => header.textContent === topic);
+                        if (topicHeader) {
+                            const questionDiv = topicHeader.nextElementSibling;
 
+                            // Remove the topic header and question div from the container
+                            if (questionsContainer.contains(topicHeader)) {
+                                questionsContainer.removeChild(topicHeader);
+                            }
+                            if (questionDiv && questionsContainer.contains(questionDiv)) {
+                                questionsContainer.removeChild(questionDiv);
+                            }
+
+                            // Send the updated remainingTopics to the backend
+                            // sendRemainingTopicsToBackend(remainingTopics);
+                        } else {
+                            console.error(`Topic '${topic}' not found.`);
+                        }                        
 
                     };
                     tagElement.appendChild(closeButton);
                     tagsContainer.appendChild(tagElement);
                 });
                 // If no topics have been removed, send the full list of topics to the backend
-                if (remainingTopics.length === topics.length) {
-                    sendRemainingTopicsToBackend(remainingTopics);
-                }
+                // if (remainingTopics.length === topics.length) {
+                //     sendRemainingTopicsToBackend(remainingTopics);
+                // }
             }
         }
-
 
         // Handle topicsAndQuestions response
         if (resJson.type === "topicsAndQuestions") {
@@ -289,6 +318,7 @@ function startListening() {
 
             // // Only update if topicsAndQuestions is not empty or null
             if ((topicsAndQuestions && Object.keys(topicsAndQuestions).length > 0)) {
+                
                 // Clear previous content in the questions container
                 const questionsContainer = document.getElementById("questions-container");
                 questionsContainer.innerHTML = '';
@@ -303,7 +333,7 @@ function startListening() {
                     // Create a div to contain questions with checkboxes
                     const questionDiv = document.createElement('div');
 
-                    topicsAndQuestions[topic].forEach(question => {
+                    topicsAndQuestions[topic].forEach(question => {                        
                         // Create a label for the checkbox and question text
                         const label = document.createElement('label');
                         const checkbox = document.createElement('input');
@@ -315,7 +345,7 @@ function startListening() {
                         checkbox.onchange = function () {
                             if (this.checked) {
                                 // Send selected question to the backend and display selected question
-                                sendQuestionToBackend(question);
+                                // sendQuestionToBackend(question);
                                 showSelectedQuestionAnswer(question);
                             }
                         };
@@ -336,15 +366,15 @@ function startListening() {
                 // Do nothing, keep the previous content if topicsAndQuestions is empty or null
             }
         }
-        if (resJson.type === 'question_answer') {
-            const answer = resJson.data;
-            const loadingId = resJson.loadingId;
-
-            console.log(`Answer received for loadingId ${loadingId}: ${answer}`);
-
-            // Call displayAnswer function to update the UI
-            displayAnswer(answer, loadingId);
-        }
+        // if (resJson.type === 'question_answer') {
+        //     const answer = resJson.data;
+        //     const loadingId = resJson.loadingId;
+        //
+        //     console.log(`Answer received for loadingId ${loadingId}: ${answer}`);
+        //
+        //     // Call displayAnswer function to update the UI
+        //     displayAnswer(answer, loadingId);
+        // }
     };
 
     // 5. Handle WebSocket errors
@@ -383,8 +413,11 @@ function showSelectedQuestionAnswer(question) {
     console.log(`Sending question: ${question} with loadingId: ${loadingId}`);
 
     // Send selected question to the backend
-    sendQuestionToBackend(question, loadingId); // Pass the loadingId to track it
+    // sendQuestionToBackend(question, loadingId); // Pass the loadingId to track it
+    fetchQuestionAnswer(question, loadingId);
+
 }
+
 
 // Function to send the selected question to the backend
 function sendQuestionToBackend(question, loadingId) {
@@ -394,6 +427,39 @@ function sendQuestionToBackend(question, loadingId) {
         loadingId: loadingId  // Pass the loadingId to track which one to remove later
     };
     wsAnalysis.send(JSON.stringify(message));  // Send the message to the backend
+}
+
+
+async function fetchQuestionAnswer(question, loadingId) {
+    try {
+        const message = {
+            type: 'selected_question',
+            data: question,
+            loadingId: loadingId  // Pass the loadingId to track the request
+        };
+        const response = await fetch('http://127.0.0.1:8000/get-answer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(message)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const resJson = await response.json();
+        const answer = resJson.data;
+        // const loadingId = resJson.loadingId;
+        console.log(`Answer received for loadingId ${loadingId}: ${answer}`);
+
+        // Call displayAnswer function to update the UI
+        displayAnswer(answer, loadingId);
+        // Handle the result and update the UI with the answer (result.data)
+    } catch (error) {
+        console.error("Error fetching question answer:", error);
+    }
 }
 
 

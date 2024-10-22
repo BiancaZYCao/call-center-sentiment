@@ -34,6 +34,9 @@ from bertopic import BERTopic
 from transformers import LlamaForCausalLM, LlamaTokenizer, LlamaTokenizerFast
 #from huggingface_hub import login
 
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 # Download NLTK stopwords
 nltk.download('stopwords')
 
@@ -55,9 +58,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Hyperparameters for TopicModel
 SIMILARITY_THRESHOLD = 0.75
 
-NUM_OF_TOPICS = 3
+NUM_OF_TOPICS = 2
 
-NUM_OF_TOPIC_QUESTIONS = 3
+NUM_OF_TOPIC_QUESTIONS = 2
 
 # Load the pre-trained BERT model
 #model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -179,6 +182,7 @@ class TopicModel(metaclass=SingletonMeta):
             self.load_bertopic()
         self.topics = []
         self.topicsAndQuestions = {}
+        self.text_history = ""
 
     def initOpenAI(self):
         #os.environ['OPENAI_API_KEY'] = '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'
@@ -233,17 +237,17 @@ class TopicModel(metaclass=SingletonMeta):
         return response.choices[0].message.content
     
 
-    def getResponseForQuestions4(self, input_text):
-        # Get the retrieved context from the index
-        response = self.generate_response(input_text)
-        questions_list = response
-        # Check if the result is a list
-        #if not isinstance(response, list):
-        #    questions_list = [line.strip("- ").strip() for line in response.strip().split("\n") if line.strip()]
-
-        #print("questions_list = ", questions_list)
-
-        return questions_list
+    # def getResponseForQuestions4(self, input_text):
+    #     # Get the retrieved context from the index
+    #     response = self.generate_response(input_text)
+    #     questions_list = response
+    #     # Check if the result is a list
+    #     #if not isinstance(response, list):
+    #     #    questions_list = [line.strip("- ").strip() for line in response.strip().split("\n") if line.strip()]
+    #
+    #     #print("questions_list = ", questions_list)
+    #
+    #     return questions_list
 
     # Function to get response from RAG based on the question or prompt.
     # Parameters:
@@ -283,7 +287,7 @@ class TopicModel(metaclass=SingletonMeta):
             max_tokens=80,
             n=1,
             stop=None,
-            temperature=0.7
+            temperature=0.5
         )
 
         # Extract the text from the completion
@@ -321,6 +325,7 @@ class TopicModel(metaclass=SingletonMeta):
         #return retrieved_docs[0].text
         return retrieved_docs
 
+    """
     # Function to generate a response using the model
     def get_response(self, prompt):
         inputs = tokenizer(prompt, return_tensors="pt").to(device)  # Move input to GPU
@@ -345,13 +350,16 @@ class TopicModel(metaclass=SingletonMeta):
         #context = " ".join([doc.get_text() for doc in retrieved_info])
         #response = llm(f"Based on the following context, answer the query: {query_prompt}\n\n{context}")
         context = retrieved_info.response
-        response = self.get_response(f"You are a customer service representative for financial information across banks in Singapore. Based on the following context, answer the query and summarise your response within 150 words: {query_prompt}\n\n{context}")
+        response = self.get_response(f"You are a customer service representative for financial information across "
+                                     f"banks in Singapore. Based on the following context, answer the query and "
+                                     f"summarise your response within 150 words: {query_prompt}\n\n{context}")
         #response = self.get_response(f"{query_prompt}\n\n{context}")
 
         print("RESPONSE = ", response)
 
         #return retrieved_info.response
         return response
+    """
 
     # Function to load the index from storage
     def load_gpt_index(self, storage_path):
@@ -381,7 +389,7 @@ class TopicModel(metaclass=SingletonMeta):
 
     def generate_response2(self, query_prompt):
         gpt_index = self.load_gpt_index(vector_store_path)
-        openai_llm = OpenAI(temperature=0.7)
+        openai_llm = OpenAI(temperature=0.3)
         retrieve = self.create_retrieval_function(gpt_index, openai_llm)
         retrieval_result = retrieve(query_prompt)
 
@@ -713,6 +721,11 @@ class TopicModel(metaclass=SingletonMeta):
         self.topics = words
         if intent != "unknown_intent":
             self.topics.insert(0, intent)
+            self.text_history += text
+            current_words= self.text_history.split()
+            if len(current_words) > 100:
+                current_words = current_words[-100:]
+                self.text_history = " ".join(current_words)
 
         return self.topics[:n_top_words]
     
@@ -891,9 +904,14 @@ class TopicModel(metaclass=SingletonMeta):
         return self.topics
 
 
-    def generateQuestionsFromTopic(self, topic, category, num_of_questions=NUM_OF_TOPIC_QUESTIONS):        
-        prompt = "List " + str(num_of_questions) + " questions that can be generated from the topic \'" + topic + "\' as a Python list that can be assigned to a variable."
-        prompt += "The generated questions should be in the context of \'" + category + "\' and targeted to its representative. Limit each question to 10 words."
+    def generateQuestionsFromTopic(self, topic, category, num_of_questions=NUM_OF_TOPIC_QUESTIONS):
+        prompt = ("We are on the call with client topic likely to be \'" + topic + "\'. Client saying that \'" +
+                  self.text_history + "\' ")
+        prompt += ("List " + str(num_of_questions) +
+                   " follow-up questions that can be helpful to clarify information or reply " +
+                    "customer requirement as a Python list that can be assigned to a variable.")
+        prompt += ("The generated questions should be in the context of \'" + category +
+                   "\' and targeted to its representative. Limit each question to 10 words.")
         #prompt += "Output the questions as a Python list. "
         ##print("Prompt: ", prompt)
 
