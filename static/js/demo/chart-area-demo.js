@@ -129,7 +129,7 @@ var myLineChart = new Chart(ctx, {  // Create a new line chart
 
 
 // Function to update the chart with new data
-function updateChart(endTimeList, scoreList) {
+function updateChart_old(endTimeList, scoreList) {
     // Compare the current number of labels in the chart with the number of new end times
     const chartDataLength = myLineChart.data.labels.length;
     const newDataLength = endTimeList.length;
@@ -155,4 +155,14 @@ function updateChart(endTimeList, scoreList) {
         // Update the chart after adding new data points
         myLineChart.update();
     }
+}
+
+function updateChart(endTimeList, scoreList) {
+    // Overwrite the entire labels and data arrays with new data
+    myLineChart.data.labels = endTimeList.map(time => parseFloat(time).toFixed(2));  // Ensure 2 decimal places for time
+    myLineChart.data.datasets[0].data = scoreList.map(score => score !== null && score !== undefined
+        ? parseFloat(score).toFixed(2) : null);  // Ensure 2 decimal places for score or null if missing
+
+    // Update the chart with the new data points
+    myLineChart.update();
 }

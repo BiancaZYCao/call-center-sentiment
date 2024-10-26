@@ -1,5 +1,5 @@
 from datetime import datetime
-import json, time
+import json, time, random
 import logging
 
 # Set up logging
@@ -212,6 +212,7 @@ reg_spks_files = [
     "speaker/agent_0022.wav",
     # "speaker/agent_0027.wav",
     # "speaker/agent_0028.wav",
+    # "speaker/agent_0032.wav",
 ]
 
 
@@ -513,8 +514,8 @@ async def websocket_endpoint(websocket_trans: WebSocket):
         logger.warning(f"[END] final_score_list: {final_score_list}")
         logger.warning(f"[END] end_time_list: {end_time_list}")
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        await websocket_trans.close()
+        logger.error(f"Unexpected error at ws/transcribe: {e}")
+        # await websocket_trans.close()  # keep connection open
     finally:
         audio_buffer = np.array([])
         audio_vad = np.array([])
@@ -525,11 +526,11 @@ async def websocket_endpoint(websocket_trans: WebSocket):
 def adjust_audio_scores(audio_score_list, text_sentiment_result):
     average_audio_score = round(sum(audio_score_list) / len(audio_score_list), 2)
 
-    if text_sentiment_result == 'Negative' and average_audio_score > 0.3:
+    if text_sentiment_result == 'Negative' and average_audio_score > 0:
         audio_score_list = [-abs(score) for score in audio_score_list]
-    elif text_sentiment_result == 'Positive' and average_audio_score < -0.2:
+    elif text_sentiment_result == 'Positive' and average_audio_score < 0:
         audio_score_list = [abs(score) for score in audio_score_list]
-    elif text_sentiment_result == 'Neutral' and abs(average_audio_score) > 0.5:
+    elif text_sentiment_result == 'Neutral' and abs(average_audio_score) > 0.2:
         audio_score_list = [score*0.5 for score in audio_score_list]
     return audio_score_list
 
@@ -563,119 +564,67 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
         cache_text_client = ""
         audio_score_list = []
         timeline_data_list = []
+        while True:
+            # Wait to get STT result from the queue
+            stt_result_dict = await stt_queue.get()  # Waits until an STT result is available
+            stt_result_text = stt_result_dict["stt_text"]
+            audio_score_list += stt_result_dict["audio_score_data"]
+            timeline_data_list += stt_result_dict["timeline_data"]
+            average_audio_score = round(sum(audio_score_list) / len(audio_score_list), 2)
 
-        # handle WebSocket message moved to API endpoint
-        async def handle_websocket_messages():
-            try:
-                while True:
-                    await websocket_analysis.send_text("ping")
-                    await asyncio.sleep(30)
-                    # receive frontend data - selected question
-                    message = await websocket_analysis.receive_text()
-                    print("received ws_msg handle_websocket_messages()")
-                    message_data = json.loads(message)
-                    # process user selected question
-                    if message_data.get('type') == 'selected_question':
-                        selected_question = message_data.get('data')
-                        loading_id = message_data.get('loadingId')  # Get the loadingId from the frontend
-                        print("received request for RAG answer:", selected_question)
+            received_at = datetime.now(singapore_tz).isoformat()
+            cache_text_client += stt_result_text + " "
 
-                        # Fetch the answer (replace with your actual logic)
-                        async with lock_tm:
-                            res = tm.getAnswerFromQuestion(selected_question)
+            if len(cache_text_client.split(" ")) >= 10:
+                logging.info(f"[TEXT] Processing sentiment for: {cache_text_client}")
+                text_sentiment_result = text_sentiment_inference(cache_text_client)
+                response_sentiment = AnalysisResponse(
+                    data=text_sentiment_result,
+                    type="text_sentiment",
+                    timestamp=str(received_at)
+                )
+                await websocket_analysis.send_json(response_sentiment.model_dump())
 
-                        # Prepare the response, including the loadingId
-                        response = {
-                            'type': 'question_answer',
-                            'data': res,
-                            'loadingId': loading_id  # Pass the loadingId back to the frontend
-                        }
-                        print("sending RAG result:", res)
-                        # Send the response back to the frontend
-                        await websocket_analysis.send_json(response)
-            except WebSocketDisconnect as ws_err:
-                logging.error(f"WebSocket Analysis disconnected in handle_websocket_messages() "
-                              f"with close code: {ws_err.code}")
-                return
-            except Exception as e:
-                logging.error(f"Error in process_stt_results: {e}")
+                # adjust sentiment score
+                adjusted_audio_scores = adjust_audio_scores(audio_score_list, text_sentiment_result)
+                if adjusted_audio_scores != audio_score_list:
+                    async with lock_score_list:
+                        logging.warning("[ADJ] adjusting final score list into: %s", adjusted_audio_scores)
+                        final_score_list = update_final_scores(final_score_list, end_time_list,
+                                                               timeline_data_list, adjusted_audio_scores)
 
-        #process result after STT and analysis
-        async def process_stt_results():
-            global cache_text_client, audio_score_list, timeline_data_list, final_score_list, end_time_list, tm
-            try:
-                while True:
-                    # Wait to get STT result from the queue
-                    stt_result_dict = await stt_queue.get()  # Waits until an STT result is available
-                    stt_result_text = stt_result_dict["stt_text"]
-                    audio_score_list += stt_result_dict["audio_score_data"]
-                    timeline_data_list += stt_result_dict["timeline_data"]
-                    average_audio_score = round(sum(audio_score_list) / len(audio_score_list), 2)
+                # perform topic modeling
+                async with lock_tm:
+                    topic_results = tm.getTopics(cache_text_client)
+                logging.warning(f"[Topic]: {topic_results}")
+                topic_results_str = json.dumps(list(set(topic_results)))
+                response_topic = AnalysisResponse(
+                    data=topic_results_str,
+                    type="topics",
+                    timestamp=received_at
+                )
+                await websocket_analysis.send_json(response_topic.model_dump())
 
-                    received_at = datetime.now(singapore_tz).isoformat()
-                    cache_text_client += stt_result_text + " "
+                # perform topic and question generated
+                async with lock_tm:
+                    topics_and_questions = tm.getTopicsAndQuestions()
+                topics_and_questions_str = json.dumps(topics_and_questions)
+                response_topic_and_questions = AnalysisResponse(
+                    data=topics_and_questions_str,
+                    type="topicsAndQuestions",
+                    timestamp=received_at
+                )
+                await websocket_analysis.send_json(response_topic_and_questions.model_dump())
 
-                    if len(cache_text_client.split(" ")) >= 10:
-                        logging.info(f"[TEXT] Processing sentiment for: {cache_text_client}")
-                        text_sentiment_result = text_sentiment_inference(cache_text_client)
-                        response_sentiment = AnalysisResponse(
-                            data=text_sentiment_result,
-                            type="text_sentiment",
-                            timestamp=str(received_at)
-                        )
-                        await websocket_analysis.send_json(response_sentiment.model_dump())
-
-                        # adjust sentiment score
-                        adjusted_audio_scores = adjust_audio_scores(audio_score_list, text_sentiment_result)
-                        if adjusted_audio_scores != audio_score_list:
-                            async with lock_score_list:
-                                logging.warning("[ADJ] adjusting final score list into: %s", adjusted_audio_scores)
-                                final_score_list = update_final_scores(final_score_list, end_time_list,
-                                                                       timeline_data_list, adjusted_audio_scores)
-
-                        # perform topic modeling
-                        async with lock_tm:
-                            topic_results = tm.getTopics(cache_text_client)
-                        topic_results_str = json.dumps(list(set(topic_results)))
-                        response_topic = AnalysisResponse(
-                            data=topic_results_str,
-                            type="topics",
-                            timestamp=received_at
-                        )
-                        await websocket_analysis.send_json(response_topic.model_dump())
-
-                        # perform topic and question generated
-                        async with lock_tm:
-                            topics_and_questions = tm.getTopicsAndQuestions()
-                        topics_and_questions_str = json.dumps(topics_and_questions)
-                        response_topic_and_questions = AnalysisResponse(
-                            data=topics_and_questions_str,
-                            type="topicsAndQuestions",
-                            timestamp=received_at
-                        )
-                        await websocket_analysis.send_json(response_topic_and_questions.model_dump())
-
-                        cache_text_client = ""  # reset
-                        audio_score_list = []
-                        timeline_data_list = []
-            except WebSocketDisconnect as ws_err:
-                logging.error(f"WebSocket Analysis disconnected in process_stt_results() "
-                              f"with close code: {ws_err.code}")
-                return
-            except Exception as err:
-                logging.error(f"Error in process_stt_results: {err}")
-
-        await asyncio.gather(
-            # handle_websocket_messages(),
-            process_stt_results(),
-            return_exceptions=True  # Ensures both tasks stop on WebSocket disconnection
-        )
-
+                cache_text_client = ""  # reset
+                audio_score_list = []
+                timeline_data_list = []
     except WebSocketDisconnect as e:
         logger.warning(f"WebSocket Analysis disconnected with close code: {e.code}")
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        await websocket_analysis.close()
+        logger.error(f"Unexpected error at ws/analysis: {e}")
+        # await websocket_analysis.close() # keep connection open
+        pass
     finally:
         # reset list
         final_score_list.clear()
@@ -689,7 +638,6 @@ async def update_chart():
     try:
         if not end_time_list or not final_score_list:  # Check if the lists are empty
             return {"end_time": None, "final_score": None}
-
         response = {
             "end_time": end_time_list,
             "final_score": final_score_list
@@ -722,7 +670,7 @@ async def get_rag_answer(request: QuestionRequest):
     # Fetch the answer from the tm model
     try:
         async with lock_tm:  # Use the lock to avoid concurrency issues with the tm instance
-            res = tm.getAnswerFromQuestion(selected_question)
+            res = tm.getResponseForQuestions(selected_question)
 
         # Prepare and return the response
         response = {

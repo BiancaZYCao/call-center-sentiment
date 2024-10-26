@@ -9,3 +9,4 @@ __pycache__
 .DS_Store
 speaker/.DS_Store
 /test_lang/
+/finetuned_*

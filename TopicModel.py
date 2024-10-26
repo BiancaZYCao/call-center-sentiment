@@ -99,16 +99,16 @@ class TopicModel(metaclass=SingletonMeta):
                 "unigrams": {"apply": 2, "credit": 2, "card": 2, "application": 2, "account": 2, "process": 1, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
                 "bigrams": {"credit card": 3, "apply card": 4},
                 "trigrams": {"apply credit card": 5, "credit card application": 5, "apply for card": 5, "apply for credit card": 5},
-                "patterns": [r"(how|want) to apply credit card", r"process of credit card application", r"apply (for)? (a|the)? credit card", 
+                "patterns": [r"(how|want) to apply credit card", r"process of credit card application", r"apply (for)? (a|the)? credit card",
                              r"how (can|do) (i|someone) apply (for)? (a|the)? credit card", r"i want to apply (for)? (a|the)? credit card"]
             },
-            "enquire credit card miles": {
-                "unigrams": {"mile": 4, "krisflyer": 4, "credit": 2, "card": 2, "account": 2, "points": 2, "redeem":2, "compensation": 2, "transfer": 2, "convert": 2, "conversion": 2, "exchange": 2, "rate": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
-                "bigrams": {"credit card": 3, "air mile": 4, "krysflyer mile": 4, "krysflyer point": 4, "card mile":4, "mile point": 3, "convert mile": 4, "conversion rate": 2, "exchange mile": 4, "redeem mile": 4, "transfer miles": 4, "foreign transaction": 2},
-                "trigrams": {"redeem krisflyer mile": 5, "convert krisflyer mile": 5, "transfer krisflyer mile": 5, "credit card mile": 4, "convert to mile": 5, "mile exchange rate": 5},
-                "patterns": [r"(how|want) to (redeem|convert|transfer)? mile", r"(how|want) to (redeem|convert|transfer)? krisflyer (mile|point)",
-                             r"enquire (about|regarding)? (credit)? card mile", r"tell me about (credit)? card mile", r"(how|can I) (get|use|redeem) (credit)? card mile"]
-            },
+            # "enquire credit card miles": {
+            #     "unigrams": {"mile": 4, "krisflyer": 4, "credit": 2, "card": 2, "account": 2, "points": 2, "redeem":2, "compensation": 2, "transfer": 2, "convert": 2, "conversion": 2, "exchange": 2, "rate": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+            #     "bigrams": {"credit card": 3, "air mile": 4, "krysflyer mile": 4, "krysflyer point": 4, "card mile":4, "mile point": 3, "convert mile": 4, "conversion rate": 2, "exchange mile": 4, "redeem mile": 4, "transfer miles": 4, "foreign transaction": 2},
+            #     "trigrams": {"redeem krisflyer mile": 5, "convert krisflyer mile": 5, "transfer krisflyer mile": 5, "credit card mile": 4, "convert to mile": 5, "mile exchange rate": 5},
+            #     "patterns": [r"(how|want) to (redeem|convert|transfer)? mile", r"(how|want) to (redeem|convert|transfer)? krisflyer (mile|point)",
+            #                  r"enquire (about|regarding)? (credit)? card mile", r"tell me about (credit)? card mile", r"(how|can I) (get|use|redeem) (credit)? card mile"]
+            # },
             "waive credit card fee": {
                 "unigrams": {"waive": 3, "waiver": 3, "credit": 2, "card": 2, "account": 2, "fee":2, "minimum": 2, "payment": 2, "annual": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
                 "bigrams": {"credit card": 3, "grace period": 3, "waive fee": 4, "late fee": 4, "late payment": 4, "interest rate": 3, "annual fee": 2, "annual payment": 2, "minimum payment": 3, "minimum fee": 4},
@@ -123,49 +123,49 @@ class TopicModel(metaclass=SingletonMeta):
                 "patterns": [r"(how|want) to (redeem|convert|transfer)? rewards", r"(how|want) to (redeem|convert|transfer)? rewards points", r"enquire (about|regarding)? (credit)? card rewards",
                              r"(how|where) can i see (credit)? card rewards", r"tell me about (credit)? card rewards"]
             },
-            "enquire credit card cashback": {
-                "unigrams": {"cashback": 3, "credit": 2, "card": 2, "points": 2, "redeem":2, "amount": 2, "account": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
-                "bigrams": {"credit card": 3, "redeem cashback": 5, "cashback amount": 4, "card cashback": 4, "credit cashback": 4, "about cashback": 5, "foreign transaction": 2},
-                "trigrams": {"amount of cashback": 5, "credit card cashback": 5},
-                "patterns": [r"(how|where) can i (redeem|get) (credit)? card cashback", r"how much is the cashback", r"tell me (more)? about (credit)? card cashback"]
-            },
-            "enquire credit card plans": {
-                "unigrams": {"plans": 3, "credit": 2, "card": 2, "limit": 2, "interest": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
-                "bigrams": {"credit card": 3, "card plans": 4, "credit plans": 4, "annual fee": 2, "minimum payment": 2, "interest rate": 2, "grace period": 2, "late fee": 2, "foreign transaction": 2},
-                "trigrams": {"credit card plans": 5, "amount of cashback": 5, "credit card limit": 5, "foreign transaction fee": 3},
-                "patterns": [r"tell me (about|more)? (credit)? card plans", r"enquire (about|regarding)? (credit)? card plans", r"(which|what) (credit)? card plans are available"]
-            },
-            "compare credit cards": {
-                "unigrams": {"compare": 3, "credit": 2, "card": 2, "plans": 2, "limit": 2, "interest": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
-                "bigrams": {"credit card": 3, "compare cards": 4},
-                "trigrams": {"compare credit card plans": 5, "compare credit cards": 5, "compare cards": 5, "compare plans": 2},
-                "patterns": [r"compare (credit)? cards", r"compare (the)? (available|best) (credit)? cards"]
-            },
-            "enquire property loan": {
-                "unigrams": {"apply": 2, "property": 3, "loan": 2, "hdb": 3, "bank": 2, "limit": 2, "mortgage": 3, "interest": 2, "rate": 2, "amortization": 3, "equity": 2, "refinance": 3,
-                             "valuation": 2, "private": 2, "account": 2, "instalment": 2, "float": 2, "fix": 2, "bto": 3, "sibor": 3, "cpf": 2, "rate": 2,
-                             "duration": 2, "flat": 3, "resale": 3, "migration": 2, "buy": 2, "sell": 2, "transfer": 2, "purchase": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
-                "bigrams": {"property loan": 3, "mortgage loan": 4, "hdb loan": 4, "bank loan": 3, "interest rate": 2, "loan period": 3, "down payment": 2, "loan tenure": 3,
-                            "floating rate": 3, "float rate": 3, "fix rate": 3, "fixed rate": 3, "home loan": 4, "bank account": 2, "resale flat": 3, "loan application": 3,
-                            "buy flat": 3, "sell flat": 3, "buy house": 3, "housing loan": 3, "bank account": 2, "purchase flat": 3, "private property": 3},
-                "trigrams": {"enquire property loan": 5, "enquire home loan": 5, "enquire mortgage loan": 5, "float interest rate": 4, "fix interest rate": 4, "buy resale flat": 4,
-                             "buy resale house": 4, "apply property loan": 5, "apply home loan": 5, "apply mortgage loan": 5,},
-                "patterns": [r"enquire (about|regarding)? (a|the)? property loan", r"tell me (about|more about) (a|the)? property loan",
-                             r"apply (for)? (a|the)? property loan", r"how (can|do) (i|someone) apply (for)? (a|the)? property loan",
-                             r"i want to apply (for)? (a|the)? property loan"]
-            },
-            "enquire travel insurance": {
-                "unigrams": {"enquire": 2, "travel": 3, "insurance": 2, "coverage": 3, "medical": 2, "limit": 2, "policy": 2, "trip": 2, "accident": 2, "compensation": 2, "emergency": 2, "terrorism": 3, "belonging": 2, "assistance": 3,
-                             "premium": 2, "private": 2, "region": 2, "luggage": 2, "baggage": 2, "delay": 2, "flight": 3, "claim": 3, "process": 2, "sick": 2,
-                             "duration": 2, "policy": 2, "cancel": 2, "buy": 2, "process": 2, "transfer": 2, "purchase": 2, "geographical": 2, "covid-19": 3, "group": 1, "personal": 1},
-                "bigrams": {"travel insurance": 4, "insurance coverage": 4, "insurance premium": 4, "medical expense": 3, "policy number": 3, "coverage amount": 2, "regional coverage": 2, "flight delay": 2, "flight cancel": 3,
-                            "flight postpone": 3, "luggage delay": 4, "baggage delay": 4, "luggage loss": 4, "lost luggage": 4, "baggage loss": 4, "lost baggage": 4, "lost belonging": 4, "personal belonging": 2, "trip cancel": 3, "personal accident": 3,
-                            "policy number": 2, "car rental": 2, "claim process": 2, "geographical coverage": 3, "trip cancellation": 2, "flight cancellation": 3, "emergency evacuation": 3},
-                "trigrams": {"apply travel insurance": 5, "how to claim": 3, "travel insurance enquiry": 5, "enquire travel insurance": 4, "buy travel insurance": 4, "cancel travel insurance": 4,
-                             "purchase travel insurance": 3, "cannot find luggage": 4, "cannot find my luggage": 4, "cannot find baggage": 4, "cannot find my baggage": 4, "lost my luggage": 4, "lost my baggage": 4},
-                "patterns": [r"enquire (about|regarding)? (a|the)? travel insurance", r"tell me (about|more about) (a|the)? travel insurance",
-                             r"buy (a|the)? travel insurance", r"how (can|do) (i|someone) buy (a|the)? travel insurance", r"i want to buy (a|the)? travel insurance"]
-            },
+            # "enquire credit card cashback": {
+            #     "unigrams": {"cashback": 3, "credit": 2, "card": 2, "points": 2, "redeem":2, "amount": 2, "account": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+            #     "bigrams": {"credit card": 3, "redeem cashback": 5, "cashback amount": 4, "card cashback": 4, "credit cashback": 4, "about cashback": 5, "foreign transaction": 2},
+            #     "trigrams": {"amount of cashback": 5, "credit card cashback": 5},
+            #     "patterns": [r"(how|where) can i (redeem|get) (credit)? card cashback", r"how much is the cashback", r"tell me (more)? about (credit)? card cashback"]
+            # },
+            # "enquire credit card plans": {
+            #     "unigrams": {"plans": 3, "credit": 2, "card": 2, "limit": 2, "interest": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+            #     "bigrams": {"credit card": 3, "card plans": 4, "credit plans": 4, "annual fee": 2, "minimum payment": 2, "interest rate": 2, "grace period": 2, "late fee": 2, "foreign transaction": 2},
+            #     "trigrams": {"credit card plans": 5, "amount of cashback": 5, "credit card limit": 5, "foreign transaction fee": 3},
+            #     "patterns": [r"tell me (about|more)? (credit)? card plans", r"enquire (about|regarding)? (credit)? card plans", r"(which|what) (credit)? card plans are available"]
+            # },
+            # "compare credit cards": {
+            #     "unigrams": {"compare": 3, "credit": 2, "card": 2, "plans": 2, "limit": 2, "interest": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+            #     "bigrams": {"credit card": 3, "compare cards": 4},
+            #     "trigrams": {"compare credit card plans": 5, "compare credit cards": 5, "compare cards": 5, "compare plans": 2},
+            #     "patterns": [r"compare (credit)? cards", r"compare (the)? (available|best) (credit)? cards"]
+            # },
+            # "enquire property loan": {
+            #     "unigrams": {"apply": 2, "property": 3, "loan": 2, "hdb": 3, "bank": 2, "limit": 2, "mortgage": 3, "interest": 2, "rate": 2, "amortization": 3, "equity": 2, "refinance": 3,
+            #                  "valuation": 2, "private": 2, "account": 2, "instalment": 2, "float": 2, "fix": 2, "bto": 3, "sibor": 3, "cpf": 2, "rate": 2,
+            #                  "duration": 2, "flat": 3, "resale": 3, "migration": 2, "buy": 2, "sell": 2, "transfer": 2, "purchase": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+            #     "bigrams": {"property loan": 3, "mortgage loan": 4, "hdb loan": 4, "bank loan": 3, "interest rate": 2, "loan period": 3, "down payment": 2, "loan tenure": 3,
+            #                 "floating rate": 3, "float rate": 3, "fix rate": 3, "fixed rate": 3, "home loan": 4, "bank account": 2, "resale flat": 3, "loan application": 3,
+            #                 "buy flat": 3, "sell flat": 3, "buy house": 3, "housing loan": 3, "bank account": 2, "purchase flat": 3, "private property": 3},
+            #     "trigrams": {"enquire property loan": 5, "enquire home loan": 5, "enquire mortgage loan": 5, "float interest rate": 4, "fix interest rate": 4, "buy resale flat": 4,
+            #                  "buy resale house": 4, "apply property loan": 5, "apply home loan": 5, "apply mortgage loan": 5,},
+            #     "patterns": [r"enquire (about|regarding)? (a|the)? property loan", r"tell me (about|more about) (a|the)? property loan",
+            #                  r"apply (for)? (a|the)? property loan", r"how (can|do) (i|someone) apply (for)? (a|the)? property loan",
+            #                  r"i want to apply (for)? (a|the)? property loan"]
+            # },
+            # "claim travel insurance": {
+            #     "unigrams": {"enquire": 2, "travel": 3, "insurance": 2, "coverage": 3, "medical": 2, "limit": 2, "policy": 2, "trip": 2, "accident": 2, "compensation": 2, "emergency": 2, "terrorism": 3, "belonging": 2, "assistance": 3,
+            #                  "premium": 2, "private": 2, "region": 2, "luggage": 2, "baggage": 2, "delay": 2, "flight": 3, "claim": 3, "process": 2, "sick": 2,
+            #                  "duration": 2, "policy": 2, "cancel": 2, "buy": 2, "process": 2, "transfer": 2, "purchase": 2, "geographical": 2, "covid-19": 3, "group": 1, "personal": 1},
+            #     "bigrams": {"travel insurance": 4, "insurance coverage": 4, "insurance premium": 4, "medical expense": 3, "policy number": 3, "coverage amount": 2, "regional coverage": 2, "flight delay": 2, "flight cancel": 3,
+            #                 "flight postpone": 3, "luggage delay": 4, "baggage delay": 4, "luggage loss": 4, "lost luggage": 4, "baggage loss": 4, "lost baggage": 4, "lost belonging": 4, "personal belonging": 2, "trip cancel": 3, "personal accident": 3,
+            #                 "policy number": 2, "car rental": 2, "claim process": 2, "geographical coverage": 3, "trip cancellation": 2, "flight cancellation": 3, "emergency evacuation": 3},
+            #     "trigrams": {"apply travel insurance": 5, "how to claim": 3, "travel insurance enquiry": 5, "enquire travel insurance": 4, "buy travel insurance": 4, "cancel travel insurance": 4,
+            #                  "purchase travel insurance": 3, "cannot find luggage": 4, "cannot find my luggage": 4, "cannot find baggage": 4, "cannot find my baggage": 4, "lost my luggage": 4, "lost my baggage": 4},
+            #     "patterns": [r"enquire (about|regarding)? (a|the)? travel insurance", r"tell me (about|more about) (a|the)? travel insurance",
+            #                  r"buy (a|the)? travel insurance", r"how (can|do) (i|someone) buy (a|the)? travel insurance", r"i want to buy (a|the)? travel insurance"]
+            # },
 
         }
 
@@ -185,8 +185,6 @@ class TopicModel(metaclass=SingletonMeta):
         self.text_history = ""
 
     def initOpenAI(self):
-        #os.environ['OPENAI_API_KEY'] = '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'
-        #os.environ['OPENAI_API_KEY'] = 'sk-proj-NNn2ogDOcAahK91dPqzAT3BlbkFJoUPvh8YGkkCkzlOtx4sL'
         os.environ['OPENAI_API_KEY'] = "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"
         self.model_id = "ft:gpt-4o-mini-2024-07-18:personal::A0l6mkLn"
 
@@ -235,25 +233,15 @@ class TopicModel(metaclass=SingletonMeta):
         )
 
         return response.choices[0].message.content
-    
 
-    # def getResponseForQuestions4(self, input_text):
-    #     # Get the retrieved context from the index
-    #     response = self.generate_response(input_text)
-    #     questions_list = response
-    #     # Check if the result is a list
-    #     #if not isinstance(response, list):
-    #     #    questions_list = [line.strip("- ").strip() for line in response.strip().split("\n") if line.strip()]
-    #
-    #     #print("questions_list = ", questions_list)
-    #
-    #     return questions_list
 
-    # Function to get response from RAG based on the question or prompt.
-    # Parameters:
-    # input_text - the question or prompt
-    # Return a text response.
     def getResponseForQuestions(self, input_text):
+        """
+        Function to get response from RAG based on the question or prompt.
+        Parameters:
+        input_text - the question or prompt
+        Return a text response.
+        """
         # Get the retrieved context from the index
         context = self.generate_response(input_text)
         #print("CONTEXT = ", context)
@@ -270,7 +258,8 @@ class TopicModel(metaclass=SingletonMeta):
                 "content": [
                     {
                     "type": "text",
-                    "text": "You are a customer service representative for financial information across banks in Singapore. Summarise your response within 50 words."
+                    "text": "You are a customer service representative for financial information across banks and insurance companies"
+                            " in Singapore. Summarise your response within 50 words."
                     }
                 ]
                 },
@@ -730,71 +719,6 @@ class TopicModel(metaclass=SingletonMeta):
         return self.topics[:n_top_words]
     
 
-    def getEntityTopic0(self, text, n_top_words=NUM_OF_TOPICS):        
-
-        custom_keywords = { "credit card": ["credit card", "card", "reward", "waive", "credit limit", "payment", "annual fee", "interest rate", "cashback",
-                                            "reward point", "minimum payment", "late fee", "grace period", "foreign transaction fee", "transaction fee", "penalty",
-                                            "late payment", "minimum fee", "limit", "debt", "owe", "uob", "ocbc", "dbs", "air miles", "air mile", "krisflyer", "redemption"],
-                            "credit card miles": ["credit card mile", "air mile", "mile"],
-                            "property loan": ["mortgage", "principal", "interest rate", "loan tenure", "down payment", "amortization", "equity", "fixed rate",
-                                              "floating rate", "refinance", "stamp duty", "valuation", "loan agreement", "agreement", "legal fee", "loan", "tenure",
-                                              "property loan", "hdb", "private property", "private", "home loan", "migrate", "cpf", "bank account", "bank loan",
-                                              "value loss", "loss", "housing lone", "buy", "sell", "loan period", "instalment", "prepayment penalty", "foreclosure",
-                                              "loan tenure", "resale flat", "bto", "loan application", "bank", "fix rate", "float rate", "transfer", "purchase",
-                                              "application", "migration", "duration", "floating interest rate", "fixed interest rate", "sibor", "installment",
-                                              "float interest rate", "fix interest rate"],
-                            "travel insurance": ["travel insurance", "coverage", "medical expense", "trip cancellation", "trip cancel", "baggage loss", "baggage delay",
-                                                 "personal accident", "accident", "pre-existing condition", "emergency", "emergency evacuation", "travel delay", "delay",
-                                                 "loss of personal belonging", "loss", "belonging", "trip postpone", "assistance", "policy excess", "rental car excess", 
-                                                 "terrorism", "covid-19", "repatriation", "premium", "insurance premium", "geographical coverage", "claim process", 
-                                                 "regional coverage", "luggage loss", "luggage delay", "luggage", "baggage", "sick", "medical", "claim", "policy number"] }
-        
-        prompt = "Rephrase the following text into formal and concise language: " + text        
-        text = self.getOpenAIResponses(prompt)
-
-        # Preprocess the text
-        text = self.preprocess_text_2(text)
-        #text = self.text_preprocessing(text, self.nlp)
-        #print("Preprocessed text = ", text)
-
-        # Create a list to store the found keywords
-        found_keywords = []
-        self.topics = []
-        found_category = None
-
-        # Iterate over each category and its associated keywords
-        for category, keywords in custom_keywords.items():
-            for keyword in keywords:
-                # Use regex to find whole words or phrases in the preprocessed text
-                # re.escape is used to handle special characters in keywords
-                if re.search(r'\b' + re.escape(keyword) + r'\b', text, re.IGNORECASE):
-                    found_category = category
-                    #print("category = ", category)
-                    if keyword not in self.topics:
-                        found_keywords.append(keyword)
-                        self.topics.append(keyword)
-        
-        # Sort found_keywords and self.topics based on the number of words (n-grams) in descending order
-        found_keywords = sorted(found_keywords, key=lambda k: len(k.split()), reverse=True)
-        self.topics = sorted(self.topics, key=lambda k: len(k.split()), reverse=True)
-
-        if found_category != None:
-            found_keywords.insert(0, found_category)
-            self.topics.insert(0, found_category)
-
-        #print("found_keywords = ", found_keywords[:n_top_words])
-        
-        #self.topics = found_category
-        #print("[Topic] topics = ", self.topics)
-        intent, words = self.recognize_intent(text)
-        print("INTENT = ", intent)
-        print("WORDS = ", words)
-        self.topics = words
-        self.topics.insert(0, intent)
-
-        return self.topics[:n_top_words]
-    
-
     def getLDATopics(self, sentence, n_top_words=NUM_OF_TOPICS):
         # Step 1: Preprocess the entire document as one unit
         preprocessed_doc = self.preprocess_text(sentence)
@@ -905,22 +829,21 @@ class TopicModel(metaclass=SingletonMeta):
 
 
     def generateQuestionsFromTopic(self, topic, category, num_of_questions=NUM_OF_TOPIC_QUESTIONS):
-        prompt = ("We are on the call with client topic likely to be \'" + topic + "\'. Client saying that \'" +
+        prompt = ("We are on the call with client where he understand credit card choice to apply for, specific on \'" + topic + "\'. Client saying that \'" +
                   self.text_history + "\' ")
         prompt += ("List " + str(num_of_questions) +
-                   " follow-up questions that can be helpful to clarify information or reply " +
-                    "customer requirement as a Python list that can be assigned to a variable.")
+                   " follow-up response that can be helpful: one is a question to clarify the information with client" +
+                   " and the other is description on key information agent need to refer to reply " +
+                    "customer requirement as a list.")
         prompt += ("The generated questions should be in the context of \'" + category +
-                   "\' and targeted to its representative. Limit each question to 10 words.")
-        #prompt += "Output the questions as a Python list. "
-        ##print("Prompt: ", prompt)
+                   "\' and targeted to its representative. Limit each one to 10 words.")
+        print(f"Prompt input: {topic} - {category} - {self.text_history}")
 
         response = self.getResponseForQuestions(prompt)
-        #print("RESPONSE 2 = ", response)
         questions = self.extractListFromResponse(response)
         
-        for question in questions:
-            self.questions_answers[question] = self.getResponseForQuestions(question)
+        # for question in questions:
+        #     self.questions_answers[question] = self.getResponseForQuestions(question)
 
         ##print(questions)
         return questions
