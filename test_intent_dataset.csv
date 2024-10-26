@@ -1,0 +1,101 @@
+User Input,Correct Intent,Predicted Intent,Result
+How do I apply for a new credit card?,apply credit card,apply credit card,1
+Can I check my credit card miles balance?,enquire credit card miles,enquire credit card miles,1
+How do I request a waiver for my credit card fee?,waive credit card fee,waive credit card fee,1
+What rewards are available for my credit card usage?,enquire credit card rewards,enquire credit card rewards,1
+How much cashback can I get with my credit card?,enquire credit card cashback,enquire credit card cashback,1
+What plans are available for my credit card?,enquire credit card plans,enquire credit card plans,1
+Can I compare different credit cards?,compare credit cards,compare credit cards,1
+What is the current interest rate for a property loan?,enquire property loan,enquire property loan,1
+What travel insurance plans can I apply for?,enquire travel insurance,enquire travel insurance,1
+Is it possible to apply for a credit card online?,apply credit card,apply credit card,1
+How do I find out my credit card miles?,enquire credit card miles,enquire credit card miles,1
+Can I waive my credit card annual fee?,waive credit card fee,waive credit card fee,1
+How do I redeem my credit card rewards?,enquire credit card rewards,enquire credit card rewards,1
+How much cashback can I earn on my card purchases?,enquire credit card cashback,enquire credit card cashback,1
+What are the available credit card plans?,enquire credit card plans,enquire credit card plans,1
+Which credit card offers the best benefits?,compare credit cards,compare credit cards,1
+How can I check if I qualify for a property loan?,enquire property loan,enquire property loan,1
+What are the benefits of travel insurance?,enquire travel insurance,enquire travel insurance,1
+What is the process for applying for a credit card?,apply credit card,apply credit card,1
+How do I check my credit card miles status?,enquire credit card miles,enquire credit card miles,1
+What is the fee waiver process for a credit card?,waive credit card fee,waive credit card fee,1
+How do I use my credit card rewards points?,enquire credit card rewards,enquire credit card rewards,1
+What cashback options are available with my credit card?,enquire credit card cashback,enquire credit card cashback,1
+What are the best credit card plans for me?,enquire credit card plans,enquire credit card plans,1
+How do I compare travel credit cards?,compare credit cards,compare credit cards,1
+What is the maximum amount I can get for a property loan?,enquire property loan,enquire property loan,1
+What are the terms for travel insurance?,enquire travel insurance,enquire travel insurance,1
+How do I submit a credit card application?,apply credit card,apply credit card,1
+Can I view my credit card miles online?,enquire credit card miles,enquire credit card miles,1
+How do I request a waiver for the monthly card fee?,waive credit card fee,waive credit card fee,1
+How do I use my card for reward points?,enquire credit card rewards,enquire credit card rewards,1
+What is the highest cashback I can receive?,enquire credit card cashback,enquire credit card cashback,1
+Can I compare various credit card plans?,enquire credit card plans,enquire credit card plans,1
+"Which card should I apply for, based on rewards?",compare credit cards,compare credit cards,1
+What is the property loan repayment period?,enquire property loan,enquire property loan,1
+What insurance options do you have for travel?,enquire travel insurance,enquire travel insurance,1
+How can I apply for a credit card with rewards?,apply credit card,apply credit card,1
+Can I transfer my credit card miles?,enquire credit card miles,enquire credit card miles,1
+How do I cancel my card fee waiver request?,waive credit card fee,waive credit card fee,1
+What travel rewards are available with my card?,enquire credit card rewards,enquire credit card rewards,1
+Can I check my cashback balance for credit cards?,enquire credit card cashback,enquire credit card cashback,1
+What is the most suitable credit card plan for me?,enquire credit card plans,enquire credit card plans,1
+What are the current property loan rates?,enquire property loan,enquire property loan,1
+What do I need to know before applying for travel insurance?,enquire travel insurance,enquire travel insurance,1
+How do I apply for a second credit card?,apply credit card,apply credit card,1
+How do I use my miles for rewards?,enquire credit card miles,enquire credit card miles,1
+Can I waive the fee for my corporate credit card?,waive credit card fee,waive credit card fee,1
+How do I maximize rewards from my credit card?,enquire credit card rewards,enquire credit card rewards,1
+Can I earn more cashback on specific purchases?,enquire credit card cashback,enquire credit card cashback,1
+What credit card plans offer cashback options?,enquire credit card plans,enquire credit card plans,1
+Can I compare platinum and regular credit cards?,compare credit cards,compare credit cards,1
+What are the conditions for obtaining a property loan?,enquire property loan,enquire property loan,1
+How do I find out if travel insurance covers medical expenses?,enquire travel insurance,enquire travel insurance,1
+How do I apply for a credit card with low interest rates?,apply credit card,apply credit card,1
+How can I check how many miles I have with my card?,enquire credit card miles,enquire credit card miles,1
+What are the steps to get my card fees waived?,waive credit card fee,waive credit card fee,1
+What rewards can I earn with my points?,enquire credit card rewards,enquire credit card rewards,1
+How do I get cashback for my online purchases?,enquire credit card cashback,enquire credit card cashback,1
+What is the best plan for long-term credit card use?,enquire credit card plans,enquire credit card plans,1
+Can I compare rewards credit cards for travel?,compare credit cards,enquire credit card rewards,0
+What documents are needed for a property loan?,enquire property loan,enquire property loan,1
+What is included in a comprehensive travel insurance plan?,enquire travel insurance,enquire travel insurance,1
+How do I apply for a student credit card?,apply credit card,apply credit card,1
+What do I do if I need to waive my credit card fees?,waive credit card fee,waive credit card fee,1
+Can I get additional miles for spending on my card?,enquire credit card miles,enquire credit card miles,1
+How do I waive the foreign transaction fee on my credit card?,waive credit card fee,waive credit card fee,1
+What rewards are included with a gold credit card?,enquire credit card rewards,enquire credit card rewards,1
+How much cashback can I earn in a year?,enquire credit card cashback,enquire credit card cashback,1
+What are the most flexible credit card plans?,enquire credit card plans,enquire credit card plans,1
+Can I compare cards that offer travel rewards?,compare credit cards,compare credit cards,1
+What property loan amount can I get approved for?,enquire property loan,enquire property loan,1
+What are the different types of travel insurance available?,enquire travel insurance,enquire travel insurance,1
+How do I increase the limit on my credit card?,enquire credit card plans,enquire credit card plans,1
+How do I redeem miles for flights with my card?,enquire credit card miles,enquire credit card miles,1
+What is the process for waiving my credit card late fee?,waive credit card fee,waive credit card fee,1
+How do I calculate how many reward points I have?,enquire credit card rewards,enquire credit card rewards,1
+How do I activate cashback rewards on my card?,enquire credit card cashback,enquire credit card rewards,0
+What credit card plans offer the lowest fees?,enquire credit card plans,enquire credit card plans,1
+What credit card should I apply for if I travel frequently?,compare credit cards,apply credit card,0
+What is the maximum interest rate for a property loan?,enquire property loan,enquire property loan,1
+How do I add coverage to my travel insurance plan?,enquire travel insurance,enquire travel insurance,1
+How do I submit documents for a credit card application?,apply credit card,apply credit card,1
+What can I use my miles for with this credit card?,enquire credit card miles,enquire credit card miles,1
+What is the fastest way to waive my credit card annual fee?,waive credit card fee,waive credit card fee,1
+What credit card rewards can I redeem for cashback?,enquire credit card rewards,enquire credit card rewards,1
+What cashback offers are available for dining?,enquire credit card cashback,enquire credit card cashback,1
+What credit card plans offer rewards for travel?,enquire credit card plans,enquire credit card plans,1
+Can I compare premium credit cards?,compare credit cards,compare credit cards,1
+How do I get pre-approved for a property loan?,enquire property loan,enquire property loan,1
+Can I apply for a travel insurance family plan?,enquire travel insurance,enquire travel insurance,1
+What are the steps for applying for a travel rewards credit card?,apply credit card,enquire credit card rewards,0
+How do I earn miles for every purchase I make?,enquire credit card miles,enquire credit card miles,1
+What is the procedure for waiving my credit card fees?,waive credit card fee,waive credit card fee,1
+Can I get bonus points for signing up for a new credit card?,enquire credit card rewards,enquire credit card rewards,1
+What are the different cashback plans for my credit card?,enquire credit card cashback,enquire credit card cashback,1
+What are the best credit card plans for families?,enquire credit card plans,enquire credit card plans,1
+Can I compare property loan interest rates?,enquire property loan,enquire property loan,1
+What is the coverage of international travel insurance?,enquire travel insurance,enquire travel insurance,1
+How do I apply for a card with cashback rewards?,apply credit card,enquire credit card rewards,0
+Can I waive my annual fee for the credit card?,waive credit card fee,waive credit card fee,1
