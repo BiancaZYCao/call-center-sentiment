@@ -1,7 +1,7 @@
 from datetime import datetime
 import json, time, random
 import logging
-
+import traceback
 # Set up logging
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -201,9 +201,11 @@ model = AutoModel(
     disable_update=True  # 禁用模型的自动更新功能，防止在处理过程中更新模型参数。
 )
 
+# option to use larger emotion model - cause lagging
 # model_name_emo2vec = "iic/emotion2vec_plus_base"
 # model_emo2vec = AutoModel(model=model_name_emo2vec)
 
+# insert agent speech sample for identification, files under /speaker
 reg_spks_files = [
     # "speaker/agent_tube.wav",
     # "speaker/agent_0003.wav",
@@ -514,7 +516,7 @@ async def websocket_endpoint(websocket_trans: WebSocket):
         logger.warning(f"[END] final_score_list: {final_score_list}")
         logger.warning(f"[END] end_time_list: {end_time_list}")
     except Exception as e:
-        logger.error(f"Unexpected error at ws/transcribe: {e}")
+        logger.error(f"Unexpected error at ws/transcribe: {e} {traceback.format_exc()}")
         # await websocket_trans.close()  # keep connection open
     finally:
         audio_buffer = np.array([])
@@ -553,15 +555,13 @@ def update_final_scores(final_score_list, end_time_list, time_points, new_scores
     return final_score_list
 
 
-
-
-
 @app.websocket("/ws/analysis")
 async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
     await websocket_analysis.accept()
     global cache_text_client, audio_score_list, timeline_data_list, final_score_list, end_time_list
     try:
         cache_text_client = ""
+        cache_text_topic_list = []
         audio_score_list = []
         timeline_data_list = []
         while True:
@@ -574,6 +574,7 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
 
             received_at = datetime.now(singapore_tz).isoformat()
             cache_text_client += stt_result_text + " "
+
 
             if len(cache_text_client.split(" ")) >= 10:
                 logging.info(f"[TEXT] Processing sentiment for: {cache_text_client}")
@@ -589,14 +590,18 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
                 adjusted_audio_scores = adjust_audio_scores(audio_score_list, text_sentiment_result)
                 if adjusted_audio_scores != audio_score_list:
                     async with lock_score_list:
-                        logging.warning("[ADJ] adjusting final score list into: %s", adjusted_audio_scores)
+                        logging.debug("[ADJ] adjusting final score list into: %s", adjusted_audio_scores)
                         final_score_list = update_final_scores(final_score_list, end_time_list,
                                                                timeline_data_list, adjusted_audio_scores)
 
+                cache_text_topic_list.append(cache_text_client)
+                if len(cache_text_topic_list) >= 5:
+                    cache_text_topic_list.pop(0)
+                cache_text_topic = " ".join(cache_text_topic_list)
                 # perform topic modeling
                 async with lock_tm:
-                    topic_results = tm.getTopics(cache_text_client)
-                logging.warning(f"[Topic]: {topic_results}")
+                    topic_results = tm.find_topics(cache_text_topic)
+                logging.debug(f"[Topic]: {topic_results}")
                 topic_results_str = json.dumps(list(set(topic_results)))
                 response_topic = AnalysisResponse(
                     data=topic_results_str,
@@ -622,7 +627,7 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
     except WebSocketDisconnect as e:
         logger.warning(f"WebSocket Analysis disconnected with close code: {e.code}")
     except Exception as e:
-        logger.error(f"Unexpected error at ws/analysis: {e}")
+        logger.error(f"Unexpected error at ws/analysis: {e} {traceback.format_exc()}")
         # await websocket_analysis.close() # keep connection open
         pass
     finally:
@@ -632,7 +637,7 @@ async def websocket_analysis_endpoint(websocket_analysis: WebSocket):
         logger.info("Cleaned up resources after WebSocket disconnect")
 
 
-# 更新折线图
+# update line charts
 @app.get("/update-chart/")
 async def update_chart():
     try:
@@ -665,12 +670,12 @@ async def get_rag_answer(request: QuestionRequest):
     loading_id = request.loadingId
 
     # Log the received question
-    print(f"Received request for RAG answer: {selected_question}, loadingId: {loading_id}")
+    logging.info(f"Received request for RAG answer: {selected_question}, loadingId: {loading_id}")
 
     # Fetch the answer from the tm model
     try:
         async with lock_tm:  # Use the lock to avoid concurrency issues with the tm instance
-            res = tm.getResponseForQuestions(selected_question)
+            res = tm.gen_response_for_questions_w_RAG(selected_question)
 
         # Prepare and return the response
         response = {
@@ -678,11 +683,11 @@ async def get_rag_answer(request: QuestionRequest):
             "data": res,
             "loadingId": loading_id  # Pass the loadingId back to the frontend
         }
-        print(f"Sending RAG result: {res}")
+        logging.info(f"Sending RAG result: {res}")
         return response
     except Exception as e:
         # Handle any errors that occur during fetching the answer
-        print(f"Error fetching answer: {e}")
+        logging.error(f"Error fetching answer: {e}")
         raise HTTPException(status_code=500, detail="Error fetching answer")
 
 
