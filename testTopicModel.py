@@ -23,7 +23,7 @@ topic_question_responses = {}
 # Use getTopics function to get all topics from the input sentence.
 # There are 10 topics in the list.
 def testGetTopics():
-    topics = tm.getTopics(sentence)
+    topics = tm.find_topics(sentence)
     print(topics)
 
 # Use getTopicsAndQuestions function to get all topics and set of questions
@@ -48,7 +48,7 @@ def testWithTranscript():
         if df_filtered.iloc[i]['speaker_type'] == 'client':
             sentence = df_filtered.iloc[i]['text']
             print("Client:", sentence)
-            topics = tm.getTopics(sentence)
+            topics = tm.find_topics(sentence)
             if len(topics) > 0:
                 print(topics)
             # Check if the next row is an agent
@@ -84,13 +84,13 @@ def display_numbered_list(items):
 # Run this function to simulate retrieval of questions and response by selecting the topic
 # identified by an input sentence.
 def user_demo():
-    topics = tm.getTopics(sentence)
+    topics = tm.find_topics(sentence)
     questions = tm.getTopicsAndQuestions()
     sel_topic = display_numbered_list(topics)
 
     if sel_topic in topics:
         sel_question = display_numbered_list(questions[sel_topic])
-        res = tm.getResponseForQuestions(sel_question)
+        res = tm.gen_response_for_questions_w_RAG(sel_question)
         print(res)
     #print(sel_topic)
 

@@ -58,12 +58,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Hyperparameters for TopicModel
 SIMILARITY_THRESHOLD = 0.75
 
-NUM_OF_TOPICS = 2
+NUM_OF_TOPICS = 3
 
 NUM_OF_TOPIC_QUESTIONS = 2
 
-# Load the pre-trained BERT model
-#model = SentenceTransformer('all-MiniLM-L6-v2')
+# Load the pre-trained BERT model - not using
+# model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Vector store path
 vector_store_path = "./gpt_store3"
@@ -102,14 +102,14 @@ class TopicModel(metaclass=SingletonMeta):
                 "patterns": [r"(how|want) to apply credit card", r"process of credit card application", r"apply (for)? (a|the)? credit card",
                              r"how (can|do) (i|someone) apply (for)? (a|the)? credit card", r"i want to apply (for)? (a|the)? credit card"]
             },
-            # "enquire credit card miles": {
-            #     "unigrams": {"mile": 4, "krisflyer": 4, "credit": 2, "card": 2, "account": 2, "points": 2, "redeem":2, "compensation": 2, "transfer": 2, "convert": 2, "conversion": 2, "exchange": 2, "rate": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
-            #     "bigrams": {"credit card": 3, "air mile": 4, "krysflyer mile": 4, "krysflyer point": 4, "card mile":4, "mile point": 3, "convert mile": 4, "conversion rate": 2, "exchange mile": 4, "redeem mile": 4, "transfer miles": 4, "foreign transaction": 2},
-            #     "trigrams": {"redeem krisflyer mile": 5, "convert krisflyer mile": 5, "transfer krisflyer mile": 5, "credit card mile": 4, "convert to mile": 5, "mile exchange rate": 5},
-            #     "patterns": [r"(how|want) to (redeem|convert|transfer)? mile", r"(how|want) to (redeem|convert|transfer)? krisflyer (mile|point)",
-            #                  r"enquire (about|regarding)? (credit)? card mile", r"tell me about (credit)? card mile", r"(how|can I) (get|use|redeem) (credit)? card mile"]
-            # },
-            "waive credit card fee": {
+            "enquire credit card miles": {
+                "unigrams": {"mile": 4, "krisflyer": 4, "credit": 2, "card": 2, "account": 2, "points": 2, "redeem":2, "compensation": 2, "transfer": 2, "convert": 2, "conversion": 2, "exchange": 2, "rate": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+                "bigrams": {"credit card": 3, "air mile": 4, "krysflyer mile": 4, "krysflyer point": 4, "card mile":4, "mile point": 3, "convert mile": 4, "conversion rate": 2, "exchange mile": 4, "redeem mile": 4, "transfer miles": 4, "foreign transaction": 2},
+                "trigrams": {"redeem krisflyer mile": 5, "convert krisflyer mile": 5, "transfer krisflyer mile": 5, "credit card mile": 4, "convert to mile": 5, "mile exchange rate": 5},
+                "patterns": [r"(how|want) to (redeem|convert|transfer)? mile", r"(how|want) to (redeem|convert|transfer)? krisflyer (mile|point)",
+                             r"enquire (about|regarding)? (credit)? card mile", r"tell me about (credit)? card mile", r"(how|can I) (get|use|redeem) (credit)? card mile"]
+            },
+            "waive fee": {
                 "unigrams": {"waive": 3, "waiver": 3, "credit": 2, "card": 2, "account": 2, "fee":2, "minimum": 2, "payment": 2, "annual": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
                 "bigrams": {"credit card": 3, "grace period": 3, "waive fee": 4, "late fee": 4, "late payment": 4, "interest rate": 3, "annual fee": 2, "annual payment": 2, "minimum payment": 3, "minimum fee": 4},
                 "trigrams": {"waive card fee": 5, "waive card payment": 5, "annual interest rate": 3, "waive late fee": 4, "waive late payment": 4, "fee waiver": 4, "credit card fee": 2},
@@ -123,50 +123,49 @@ class TopicModel(metaclass=SingletonMeta):
                 "patterns": [r"(how|want) to (redeem|convert|transfer)? rewards", r"(how|want) to (redeem|convert|transfer)? rewards points", r"enquire (about|regarding)? (credit)? card rewards",
                              r"(how|where) can i see (credit)? card rewards", r"tell me about (credit)? card rewards"]
             },
-            # "enquire credit card cashback": {
-            #     "unigrams": {"cashback": 3, "credit": 2, "card": 2, "points": 2, "redeem":2, "amount": 2, "account": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
-            #     "bigrams": {"credit card": 3, "redeem cashback": 5, "cashback amount": 4, "card cashback": 4, "credit cashback": 4, "about cashback": 5, "foreign transaction": 2},
-            #     "trigrams": {"amount of cashback": 5, "credit card cashback": 5},
-            #     "patterns": [r"(how|where) can i (redeem|get) (credit)? card cashback", r"how much is the cashback", r"tell me (more)? about (credit)? card cashback"]
-            # },
-            # "enquire credit card plans": {
-            #     "unigrams": {"plans": 3, "credit": 2, "card": 2, "limit": 2, "interest": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
-            #     "bigrams": {"credit card": 3, "card plans": 4, "credit plans": 4, "annual fee": 2, "minimum payment": 2, "interest rate": 2, "grace period": 2, "late fee": 2, "foreign transaction": 2},
-            #     "trigrams": {"credit card plans": 5, "amount of cashback": 5, "credit card limit": 5, "foreign transaction fee": 3},
-            #     "patterns": [r"tell me (about|more)? (credit)? card plans", r"enquire (about|regarding)? (credit)? card plans", r"(which|what) (credit)? card plans are available"]
-            # },
-            # "compare credit cards": {
-            #     "unigrams": {"compare": 3, "credit": 2, "card": 2, "plans": 2, "limit": 2, "interest": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
-            #     "bigrams": {"credit card": 3, "compare cards": 4},
-            #     "trigrams": {"compare credit card plans": 5, "compare credit cards": 5, "compare cards": 5, "compare plans": 2},
-            #     "patterns": [r"compare (credit)? cards", r"compare (the)? (available|best) (credit)? cards"]
-            # },
-            # "enquire property loan": {
-            #     "unigrams": {"apply": 2, "property": 3, "loan": 2, "hdb": 3, "bank": 2, "limit": 2, "mortgage": 3, "interest": 2, "rate": 2, "amortization": 3, "equity": 2, "refinance": 3,
-            #                  "valuation": 2, "private": 2, "account": 2, "instalment": 2, "float": 2, "fix": 2, "bto": 3, "sibor": 3, "cpf": 2, "rate": 2,
-            #                  "duration": 2, "flat": 3, "resale": 3, "migration": 2, "buy": 2, "sell": 2, "transfer": 2, "purchase": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
-            #     "bigrams": {"property loan": 3, "mortgage loan": 4, "hdb loan": 4, "bank loan": 3, "interest rate": 2, "loan period": 3, "down payment": 2, "loan tenure": 3,
-            #                 "floating rate": 3, "float rate": 3, "fix rate": 3, "fixed rate": 3, "home loan": 4, "bank account": 2, "resale flat": 3, "loan application": 3,
-            #                 "buy flat": 3, "sell flat": 3, "buy house": 3, "housing loan": 3, "bank account": 2, "purchase flat": 3, "private property": 3},
-            #     "trigrams": {"enquire property loan": 5, "enquire home loan": 5, "enquire mortgage loan": 5, "float interest rate": 4, "fix interest rate": 4, "buy resale flat": 4,
-            #                  "buy resale house": 4, "apply property loan": 5, "apply home loan": 5, "apply mortgage loan": 5,},
-            #     "patterns": [r"enquire (about|regarding)? (a|the)? property loan", r"tell me (about|more about) (a|the)? property loan",
-            #                  r"apply (for)? (a|the)? property loan", r"how (can|do) (i|someone) apply (for)? (a|the)? property loan",
-            #                  r"i want to apply (for)? (a|the)? property loan"]
-            # },
-            # "claim travel insurance": {
-            #     "unigrams": {"enquire": 2, "travel": 3, "insurance": 2, "coverage": 3, "medical": 2, "limit": 2, "policy": 2, "trip": 2, "accident": 2, "compensation": 2, "emergency": 2, "terrorism": 3, "belonging": 2, "assistance": 3,
-            #                  "premium": 2, "private": 2, "region": 2, "luggage": 2, "baggage": 2, "delay": 2, "flight": 3, "claim": 3, "process": 2, "sick": 2,
-            #                  "duration": 2, "policy": 2, "cancel": 2, "buy": 2, "process": 2, "transfer": 2, "purchase": 2, "geographical": 2, "covid-19": 3, "group": 1, "personal": 1},
-            #     "bigrams": {"travel insurance": 4, "insurance coverage": 4, "insurance premium": 4, "medical expense": 3, "policy number": 3, "coverage amount": 2, "regional coverage": 2, "flight delay": 2, "flight cancel": 3,
-            #                 "flight postpone": 3, "luggage delay": 4, "baggage delay": 4, "luggage loss": 4, "lost luggage": 4, "baggage loss": 4, "lost baggage": 4, "lost belonging": 4, "personal belonging": 2, "trip cancel": 3, "personal accident": 3,
-            #                 "policy number": 2, "car rental": 2, "claim process": 2, "geographical coverage": 3, "trip cancellation": 2, "flight cancellation": 3, "emergency evacuation": 3},
-            #     "trigrams": {"apply travel insurance": 5, "how to claim": 3, "travel insurance enquiry": 5, "enquire travel insurance": 4, "buy travel insurance": 4, "cancel travel insurance": 4,
-            #                  "purchase travel insurance": 3, "cannot find luggage": 4, "cannot find my luggage": 4, "cannot find baggage": 4, "cannot find my baggage": 4, "lost my luggage": 4, "lost my baggage": 4},
-            #     "patterns": [r"enquire (about|regarding)? (a|the)? travel insurance", r"tell me (about|more about) (a|the)? travel insurance",
-            #                  r"buy (a|the)? travel insurance", r"how (can|do) (i|someone) buy (a|the)? travel insurance", r"i want to buy (a|the)? travel insurance"]
-            # },
-
+            "enquire credit card cashback": {
+                "unigrams": {"cashback": 3, "credit": 2, "card": 2, "points": 2, "redeem":2, "amount": 2, "account": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+                "bigrams": {"credit card": 3, "redeem cashback": 5, "cashback amount": 4, "card cashback": 4, "credit cashback": 4, "about cashback": 5, "foreign transaction": 2},
+                "trigrams": {"amount of cashback": 5, "credit card cashback": 5},
+                "patterns": [r"(how|where) can i (redeem|get) (credit)? card cashback", r"how much is the cashback", r"tell me (more)? about (credit)? card cashback"]
+            },
+            "enquire credit card plans": {
+                "unigrams": {"plans": 3, "credit": 2, "card": 2, "limit": 2, "interest": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+                "bigrams": {"credit card": 3, "card plans": 4, "credit plans": 4, "annual fee": 2, "minimum payment": 2, "interest rate": 2, "grace period": 2, "late fee": 2, "foreign transaction": 2},
+                "trigrams": {"credit card plans": 5, "amount of cashback": 5, "credit card limit": 5, "foreign transaction fee": 3},
+                "patterns": [r"tell me (about|more)? (credit)? card plans", r"enquire (about|regarding)? (credit)? card plans", r"(which|what) (credit)? card plans are available"]
+            },
+            "compare credit cards": {
+                "unigrams": {"compare": 3, "credit": 2, "card": 2, "plans": 2, "limit": 2, "interest": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+                "bigrams": {"credit card": 3, "compare cards": 4},
+                "trigrams": {"compare credit card plans": 5, "compare credit cards": 5, "compare cards": 5, "compare plans": 2},
+                "patterns": [r"compare (credit)? cards", r"compare (the)? (available|best) (credit)? cards"]
+            },
+            "enquire property loan": {
+                "unigrams": {"apply": 2, "property": 3, "loan": 2, "hdb": 3, "bank": 2, "limit": 2, "mortgage": 3, "interest": 2, "rate": 2, "amortization": 3, "equity": 2, "refinance": 3,
+                             "valuation": 2, "private": 2, "account": 2, "instalment": 2, "float": 2, "fix": 2, "bto": 3, "sibor": 3, "cpf": 2, "rate": 2,
+                             "duration": 2, "flat": 3, "resale": 3, "migration": 2, "buy": 2, "sell": 2, "transfer": 2, "purchase": 2, "ocbc": 1, "dbs": 1, "uob": 1, "hsbc": 1},
+                "bigrams": {"property loan": 3, "mortgage loan": 4, "hdb loan": 4, "bank loan": 3, "interest rate": 2, "loan period": 3, "down payment": 2, "loan tenure": 3,
+                            "floating rate": 3, "float rate": 3, "fix rate": 3, "fixed rate": 3, "home loan": 4, "bank account": 2, "resale flat": 3, "loan application": 3,
+                            "buy flat": 3, "sell flat": 3, "buy house": 3, "housing loan": 3, "bank account": 2, "purchase flat": 3, "private property": 3},
+                "trigrams": {"enquire property loan": 5, "enquire home loan": 5, "enquire mortgage loan": 5, "float interest rate": 4, "fix interest rate": 4, "buy resale flat": 4,
+                             "buy resale house": 4, "apply property loan": 5, "apply home loan": 5, "apply mortgage loan": 5,},
+                "patterns": [r"enquire (about|regarding)? (a|the)? property loan", r"tell me (about|more about) (a|the)? property loan",
+                             r"apply (for)? (a|the)? property loan", r"how (can|do) (i|someone) apply (for)? (a|the)? property loan",
+                             r"i want to apply (for)? (a|the)? property loan"]
+            },
+            "claim travel insurance": {
+                "unigrams": {"enquire": 2, "travel": 3, "insurance": 2, "coverage": 3, "medical": 2, "limit": 2, "policy": 2, "trip": 2, "accident": 2, "compensation": 2, "emergency": 2, "terrorism": 3, "belonging": 2, "assistance": 3,
+                             "premium": 2, "private": 2, "region": 2, "luggage": 2, "baggage": 2, "delay": 2, "flight": 3, "claim": 3, "process": 2, "sick": 2,
+                             "duration": 2, "policy": 2, "cancel": 2, "buy": 2, "process": 2, "transfer": 2, "purchase": 2, "geographical": 2, "covid-19": 3, "group": 1, "personal": 1},
+                "bigrams": {"travel insurance": 4, "insurance coverage": 4, "insurance premium": 4, "medical expense": 3, "policy number": 3, "coverage amount": 2, "regional coverage": 2, "flight delay": 2, "flight cancel": 3,
+                            "flight postpone": 3, "luggage delay": 4, "baggage delay": 4, "luggage loss": 4, "lost luggage": 4, "baggage loss": 4, "lost baggage": 4, "lost belonging": 4, "personal belonging": 2, "trip cancel": 3, "personal accident": 3,
+                            "policy number": 2, "car rental": 2, "claim process": 2, "geographical coverage": 3, "trip cancellation": 2, "flight cancellation": 3, "emergency evacuation": 3},
+                "trigrams": {"apply travel insurance": 5, "how to claim": 3, "travel insurance enquiry": 5, "enquire travel insurance": 4, "buy travel insurance": 4, "cancel travel insurance": 4,
+                             "purchase travel insurance": 3, "cannot find luggage": 4, "cannot find my luggage": 4, "cannot find baggage": 4, "cannot find my baggage": 4, "lost my luggage": 4, "lost my baggage": 4},
+                "patterns": [r"enquire (about|regarding)? (a|the)? travel insurance", r"tell me (about|more about) (a|the)? travel insurance",
+                             r"buy (a|the)? travel insurance", r"how (can|do) (i|someone) buy (a|the)? travel insurance", r"i want to buy (a|the)? travel insurance"]
+            }
         }
 
     def __init__(self, model=model_to_use):
@@ -175,7 +174,7 @@ class TopicModel(metaclass=SingletonMeta):
         self.stop_words = self.nlp.Defaults.stop_words
         # Initialize the lemmatizer
         self.lemmatizer = WordNetLemmatizer()
-        self.initOpenAI()
+        self.init_open_ai()
         if (model == "lda"):
             self.load_lda()
         elif (model == "bertopic"):
@@ -184,7 +183,7 @@ class TopicModel(metaclass=SingletonMeta):
         self.topicsAndQuestions = {}
         self.text_history = ""
 
-    def initOpenAI(self):
+    def init_open_ai(self):
         os.environ['OPENAI_API_KEY'] = "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"
         self.model_id = "ft:gpt-4o-mini-2024-07-18:personal::A0l6mkLn"
 
@@ -197,7 +196,7 @@ class TopicModel(metaclass=SingletonMeta):
     def is_acronym(word):
         return bool(re.match(r'([A-Z]\.){2,}|[A-Z]{2,}', word))
 
-    def getOpenAIResponses(self, prompt):
+    def get_openAI_responses(self, prompt):
         #prompt = "What are the credit cards with KrisFlyer?"
 
         response = self.client.chat.completions.create(
@@ -235,7 +234,7 @@ class TopicModel(metaclass=SingletonMeta):
         return response.choices[0].message.content
 
 
-    def getResponseForQuestions(self, input_text):
+    def gen_response_for_questions_w_RAG(self, input_text):
         """
         Function to get response from RAG based on the question or prompt.
         Parameters:
@@ -243,8 +242,8 @@ class TopicModel(metaclass=SingletonMeta):
         Return a text response.
         """
         # Get the retrieved context from the index
-        context = self.generate_response(input_text)
-        #print("CONTEXT = ", context)
+        context = self.retrieve_RAG_context(input_text)
+        # print("CONTEXT = ", context)
 
         # Integrate the context with the input text for the generative model
         prompt = f"Context: {context}\n\nQuestion: {input_text}\n\nAnswer:"
@@ -258,8 +257,8 @@ class TopicModel(metaclass=SingletonMeta):
                 "content": [
                     {
                     "type": "text",
-                    "text": "You are a customer service representative for financial information across banks and insurance companies"
-                            " in Singapore. Summarise your response within 50 words."
+                    "text": "You are a customer service representative for financial information across banks and "
+                            "insurance companies in Singapore. Summarise your response within 50 words."
                     }
                 ]
                 },
@@ -276,13 +275,11 @@ class TopicModel(metaclass=SingletonMeta):
             max_tokens=80,
             n=1,
             stop=None,
-            temperature=0.5
+            temperature=0.7  # configurable
         )
 
         # Extract the text from the completion
-        #generated_text = completion.choices[0].message.content.strip()
         generated_text = completion.choices[0].message.content.strip()
-        #generated_text = completion.choices
 
         return generated_text
     
@@ -293,7 +290,7 @@ class TopicModel(metaclass=SingletonMeta):
         index = load_index_from_storage(storage_context)
         
         # Convert the index into a retriever
-        #retriever = index.as_retriever(similarity_top_k=1)
+        # retriever = index.as_retriever(similarity_top_k=1)
 
         retriever = index.as_query_engine(
                         response_mode="tree_summarize",
@@ -302,54 +299,6 @@ class TopicModel(metaclass=SingletonMeta):
 
         return retriever
 
-    # Function to query the index and retrieve relevant information
-    def retrieve_information(self, retriever, prompt):        
-        # Use the retriever to fetch the relevant information for the prompt
-        retrieved_docs = retriever.query(prompt)
-        #retrieved_docs = retriever.retrieve(prompt)
-
-        #print("RESPONSE = ", retrieved_docs.response)
-
-        # You can process the retrieved documents if needed
-        #return retrieved_docs[0].text
-        return retrieved_docs
-
-    """
-    # Function to generate a response using the model
-    def get_response(self, prompt):
-        inputs = tokenizer(prompt, return_tensors="pt").to(device)  # Move input to GPU
-        attention_mask = inputs.get("attention_mask", None)
-        outputs = model.generate(inputs["input_ids"], attention_mask=attention_mask, max_length=256)
-        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-        return response
-
-    def generate_response4(self, query_prompt):
-        print("PROMPT = ", query_prompt)
-        # Load the retriever from the stored index
-        retriever = self.load_and_create_retriever(vector_store_path)
-        
-        retrieved_info = self.retrieve_information(retriever, query_prompt)
-
-        print("retrieved_info = ", retrieved_info.response)
-
-        # Optional: use the LLM to generate a response from the retrieved information
-        #llm = OpenAI(temperature=0.7)
-        #llm = OpenAI()
-        #context = " ".join([doc.get_text() for doc in retrieved_info])
-        #response = llm(f"Based on the following context, answer the query: {query_prompt}\n\n{context}")
-        context = retrieved_info.response
-        response = self.get_response(f"You are a customer service representative for financial information across "
-                                     f"banks in Singapore. Based on the following context, answer the query and "
-                                     f"summarise your response within 150 words: {query_prompt}\n\n{context}")
-        #response = self.get_response(f"{query_prompt}\n\n{context}")
-
-        print("RESPONSE = ", response)
-
-        #return retrieved_info.response
-        return response
-    """
-
     # Function to load the index from storage
     def load_gpt_index(self, storage_path):
         # Load the pre-built index from storage path
@@ -357,34 +306,8 @@ class TopicModel(metaclass=SingletonMeta):
 
         return index
 
-    # Function to create a retriever and get information based on a prompt
-    def create_retrieval_function(self, index, llm):
-        retriever = index.as_retriever()
-    
-        def retrieve(prompt):
-            # Query the retriever with the prompt to get relevant documents
-            retrieved_docs = retriever.query(prompt)
-            
-            # Combine the retrieved information and pass it to the LLM for a final response
-            context = " ".join([doc.get_text() for doc in retrieved_docs])
-            
-            # Ask the LLM to generate a final response based on the context
-            full_prompt = f"Based on the following information, answer the query:\n\n{context}\n\nQuery: {prompt}"
-            response = llm(full_prompt)
 
-            return response
-        
-        return retrieve
-
-    def generate_response2(self, query_prompt):
-        gpt_index = self.load_gpt_index(vector_store_path)
-        openai_llm = OpenAI(temperature=0.3)
-        retrieve = self.create_retrieval_function(gpt_index, openai_llm)
-        retrieval_result = retrieve(query_prompt)
-
-        return retrieval_result
-
-    def generate_response(self, prompt):        
+    def retrieve_RAG_context(self, prompt):
         # If not already done, initialize ‘index’ and ‘query_engine’
         if not hasattr(self, "index"):
             # rebuild storage context and load index
@@ -397,29 +320,6 @@ class TopicModel(metaclass=SingletonMeta):
 
         return response.response
 
-    def generate_response1(self, input_text):
-        # If not already done, initialize ‘index’ and ‘query_engine’
-        if not hasattr(self.generate_response, "index"):
-            # rebuild storage context and load index
-            storage_context = StorageContext.from_defaults(persist_dir="./gpt_store3")
-            self.generate_response.index = load_index_from_storage(storage_context=storage_context, index_id="vector_index")
-
-        # Initialize query engine
-        self.generate_response.query_engine = self.generate_response.index.as_query_engine()
-
-        # Submit query
-        response = self.generate_response.query_engine.query(input_text)
-
-        return response.response
-
-    def remove_consecutive_duplicates(self, sentence):
-        # This regular expression matches any word that appears consecutively
-        pattern = r'\b(\w+)\s+\1\b'
-        
-        # Substitutes the consecutive duplicate with a single instance of the word
-        result = re.sub(pattern, r'\1', sentence)
-        
-        return result
     
     def remove_duplicates(self, word_list):
         seen = set()
@@ -445,13 +345,13 @@ class TopicModel(metaclass=SingletonMeta):
         return vectorizer
     
 
-    def getTopics(self, sentence, n_top_words=NUM_OF_TOPICS, model=model_to_use):
+    def find_topics(self, sentence, n_top_words=NUM_OF_TOPICS, model=model_to_use):
         if model == "bertopic":
-            return self.getBERTopics(sentence, n_top_words=n_top_words)
+            return self.get_bert_topic(sentence, n_top_words=n_top_words)
         elif model == "lda":
-            return self.getLDATopics(sentence, n_top_words=n_top_words)
+            return self.get_lda_topic(sentence, n_top_words=n_top_words)
         elif model == "entity":
-            return self.getEntityTopic(sentence, n_top_words=n_top_words)
+            return self.get_entity_topic(sentence, n_top_words=n_top_words)
         
     def load_lda(self):
         # Path to saved LDA model and vectorizer
@@ -482,163 +382,6 @@ class TopicModel(metaclass=SingletonMeta):
     def get_ngrams(self, user_input, n):
         tokens = user_input.split()
         return zip(*[islice(tokens, i, None) for i in range(n)])
-
-    def recognize_intent0(self, user_input):
-        user_input = user_input.lower()
-        
-        # Initialize a score dictionary for each intent
-        intent_scores = defaultdict(int)
-
-        # Generate unigrams, bigrams, and trigrams from user input
-        unigrams = user_input.split()
-        bigrams = [' '.join(bigram) for bigram in self.get_ngrams(user_input, 2)]
-        trigrams = [' '.join(trigram) for trigram in self.get_ngrams(user_input, 3)]
-
-        # Match unigrams, bigrams, and trigrams with weighted keywords
-        for intent, data in self.intents.items():
-            for unigram in unigrams:
-                if unigram in data["unigrams"]:
-                    intent_scores[intent] += data["unigrams"][unigram]
-            
-            for bigram in bigrams:
-                if bigram in data["bigrams"]:
-                    intent_scores[intent] += data["bigrams"][bigram]
-            
-            for trigram in trigrams:
-                if trigram in data["trigrams"]:
-                    intent_scores[intent] += data["trigrams"][trigram]
-
-            # Check patterns using regular expressions
-            for pattern in data["patterns"]:
-                if re.search(pattern, user_input):
-                    intent_scores[intent] += 5  # Add pattern match boost
-
-        # Return the intent with the highest score
-        if intent_scores:
-            return max(intent_scores, key=intent_scores.get)
-        
-        return "unknown_intent"
-
-    def recognize_intent1(self, user_input):
-        user_input = user_input.lower()
-        
-        # Initialize score and keyword dictionary for each intent
-        intent_scores = defaultdict(int)
-        matched_keywords = defaultdict(list)
-
-        # Generate unigrams, bigrams, and trigrams from user input
-        unigrams = user_input.split()
-        bigrams = [' '.join(bigram) for bigram in self.get_ngrams(user_input, 2)]
-        trigrams = [' '.join(trigram) for trigram in self.get_ngrams(user_input, 3)]
-
-        # Match unigrams, bigrams, and trigrams with weighted keywords
-        for intent, data in self.intents.items():
-            for unigram in unigrams:
-                if unigram in data["unigrams"]:
-                    intent_scores[intent] += data["unigrams"][unigram]
-                    matched_keywords[intent].append(unigram)
-            
-            for bigram in bigrams:
-                if bigram in data["bigrams"]:
-                    intent_scores[intent] += data["bigrams"][bigram]
-                    matched_keywords[intent].append(bigram)
-            
-            for trigram in trigrams:
-                if trigram in data["trigrams"]:
-                    intent_scores[intent] += data["trigrams"][trigram]
-                    matched_keywords[intent].append(trigram)
-
-            # Check patterns using regular expressions
-            for pattern in data["patterns"]:
-                if re.search(pattern, user_input):
-                    intent_scores[intent] += 5  # Add pattern match boost
-                    matched_keywords[intent].append(f"Pattern match: {pattern}")
-
-        # Identify the intent with the highest score
-        if intent_scores:
-            best_intent = max(intent_scores, key=intent_scores.get)
-            return best_intent, matched_keywords[best_intent]
-        
-        return "unknown_intent", []
-
-
-    def recognize_intent3(self, user_input):
-        user_input = user_input.lower()
-        
-        # Initialize score and keyword dictionary for each intent
-        intent_scores = defaultdict(int)
-        matched_keywords = defaultdict(set)  # Use set to avoid duplicates
-
-        # Generate unigrams, bigrams, and trigrams from user input
-        unigrams = user_input.split()
-        bigrams = [' '.join(bigram) for bigram in self.get_ngrams(user_input, 2)]
-        trigrams = [' '.join(trigram) for trigram in self.get_ngrams(user_input, 3)]
-
-        # Match unigrams, bigrams, and trigrams with weighted keywords
-        for intent, data in self.intents.items():
-            for unigram in unigrams:
-                if unigram in data["unigrams"]:
-                    intent_scores[intent] += data["unigrams"][unigram]
-                    matched_keywords[intent].add(unigram)
-            
-            for bigram in bigrams:
-                if bigram in data["bigrams"]:
-                    intent_scores[intent] += data["bigrams"][bigram]
-                    matched_keywords[intent].add(bigram)
-            
-            for trigram in trigrams:
-                if trigram in data["trigrams"]:
-                    intent_scores[intent] += data["trigrams"][trigram]
-                    matched_keywords[intent].add(trigram)
-
-            # Check patterns using regular expressions
-            for pattern in data["patterns"]:
-                if re.search(pattern, user_input):
-                    intent_scores[intent] += 5  # Add pattern match boost
-                    matched_keywords[intent].add(f"Pattern match: {pattern}")
-
-        # Identify the intent with the highest score
-        if intent_scores:
-            best_intent = max(intent_scores, key=intent_scores.get)
-            return best_intent, list(matched_keywords[best_intent])  # Convert set to list before returning
-        
-        return "unknown_intent", []
-
-    def recognize_intent2(self, user_input):
-        user_input = user_input.lower()
-        
-        # Initialize score and keyword dictionary for each intent
-        intent_scores = defaultdict(int)
-        matched_keywords = defaultdict(set)  # Use set to avoid duplicates
-
-        # Generate bigrams and trigrams from user input
-        bigrams = [' '.join(bigram) for bigram in self.get_ngrams(user_input, 2)]
-        trigrams = [' '.join(trigram) for trigram in self.get_ngrams(user_input, 3)]
-
-        # Match bigrams and trigrams with weighted keywords
-        for intent, data in self.intents.items():
-            for bigram in bigrams:
-                if bigram in data["bigrams"]:
-                    intent_scores[intent] += data["bigrams"][bigram]
-                    matched_keywords[intent].add(bigram)
-            
-            for trigram in trigrams:
-                if trigram in data["trigrams"]:
-                    intent_scores[intent] += data["trigrams"][trigram]
-                    matched_keywords[intent].add(trigram)
-
-            # Check patterns using regular expressions
-            for pattern in data["patterns"]:
-                if re.search(pattern, user_input):
-                    intent_scores[intent] += 5  # Add pattern match boost
-                    matched_keywords[intent].add(f"Pattern match: {pattern}")
-
-        # Identify the intent with the highest score
-        if intent_scores:
-            best_intent = max(intent_scores, key=intent_scores.get)
-            return best_intent, list(matched_keywords[best_intent])  # Convert set to list before returning
-        
-        return "unknown_intent", []
 
     def recognize_intent(self, user_input):
         user_input = user_input.lower()
@@ -697,31 +440,38 @@ class TopicModel(metaclass=SingletonMeta):
         return "unknown_intent", []
 
 
-    def getEntityTopic(self, text, n_top_words=NUM_OF_TOPICS):
+    def get_entity_topic(self, text, n_top_words=NUM_OF_TOPICS):
         prompt = "Rephrase the following text into formal and concise language: " + text        
-        text = self.getOpenAIResponses(prompt)
+        text = self.get_openAI_responses(prompt)
+
+        # add into text_history and pop out previous one
+        self.text_history += text
+        current_words = self.text_history.split()
+        if len(current_words) > 100:
+            current_words = current_words[-100:]
+            self.text_history = " ".join(current_words)
 
         # Preprocess the text
-        text = self.preprocess_text_2(text)
+        text = self.preprocess_text(self.text_history)
 
         intent, words = self.recognize_intent(text)
         print("INTENT = ", intent)
         print("WORDS = ", words)
-        self.topics = words
+        # record all Topics in history
+        self.topics = ([word for word in words if word not in intent] +
+                       [topic for topic in self.topics if topic not in words])
         if intent != "unknown_intent":
             self.topics.insert(0, intent)
-            self.text_history += text
-            current_words= self.text_history.split()
-            if len(current_words) > 100:
-                current_words = current_words[-100:]
-                self.text_history = " ".join(current_words)
 
         return self.topics[:n_top_words]
     
 
-    def getLDATopics(self, sentence, n_top_words=NUM_OF_TOPICS):
+    def get_lda_topic(self, sentence, n_top_words=NUM_OF_TOPICS):
+        """
+        LDA method of Topic, not used in real-time but used in summary
+        """
         # Step 1: Preprocess the entire document as one unit
-        preprocessed_doc = self.preprocess_text(sentence)
+        preprocessed_doc = self.preprocess_text_LDA(sentence)
         #preprocessed_texts = tp.text_preprocessing(sentence)
         #preprocessed_texts = self.remove_duplicates(preprocessed_texts)
         #preprocessed_texts_joined = [' '.join(preprocessed_texts)]
@@ -753,12 +503,14 @@ class TopicModel(metaclass=SingletonMeta):
         return self.topics
 
 
-    # Function to get the best topics from a list of topics.
-    # Parameters:
-    # sentence - the inut sentence, can consist of multiple sentences.
-    # num_of_topics - the number of topics to retrieve. Maximum is 10. Default is 7.
-    # Return a list of topic words.
-    def getBERTopics(self, sentence, n_top_words=NUM_OF_TOPICS):
+    def get_bert_topic(self, sentence, n_top_words=NUM_OF_TOPICS):
+        """
+        # Function to get the best topics from a list of topics.
+        # Parameters:
+        # sentence - the input sentence, can consist of multiple sentences.
+        # num_of_topics - the number of topics to retrieve. Maximum is 10. Default is 7.
+        # Return a list of topic words.
+        """
         topic_threshold = 0.3
         # Preprocess the texts (same as during training)
         #preprocessed_texts = self.preprocess_text(sentence)
@@ -834,12 +586,13 @@ class TopicModel(metaclass=SingletonMeta):
         prompt += ("List " + str(num_of_questions) +
                    " follow-up response that can be helpful: one is a question to clarify the information with client" +
                    " and the other is description on key information agent need to refer to reply " +
-                    "customer requirement as a list.")
+                    "customer requirement as a python string list, "
+                    "e.g. ['coverage of the insurance policy','May I know your policy number please?']. ")
         prompt += ("The generated questions should be in the context of \'" + category +
                    "\' and targeted to its representative. Limit each one to 10 words.")
         print(f"Prompt input: {topic} - {category} - {self.text_history}")
 
-        response = self.getResponseForQuestions(prompt)
+        response = self.gen_response_for_questions_w_RAG(prompt)
         questions = self.extractListFromResponse(response)
         
         # for question in questions:
@@ -855,21 +608,26 @@ class TopicModel(metaclass=SingletonMeta):
     def getQuestionAnswerList(self):
         return self.questions_answers
 
-    # Function to get generated questions for each topic.
-    # Return a dictionary in the format: 
-    # {topic: [questions]}
+
     def getTopicsAndQuestions(self):
+        """
+        Function to get generated questions for each topic.
+        Return a dictionary in the format:
+        {topic: [questions]}
+        """
         topicsAndQuestions = {}
         category = ""
         if len(self.topics) > 0:
             category = self.topics[0]
             ##print("topics = ", self.topics)
-            for topic in self.topics:
-                if topic not in topicsAndQuestions:
-                    topicsAndQuestions[topic] = []  # Initialize an empty list if the key doesn't exist
-                topicsAndQuestions[topic] = self.generateQuestionsFromTopic(topic, category)
-            self.topicsAndQuestions = topicsAndQuestions
-
+            for topic in self.topics[:NUM_OF_TOPICS]:
+                if topic not in self.topicsAndQuestions:
+                    # topicsAndQuestions[topic] = []  # Initialize an empty list if the key doesn't exist
+                    topicsAndQuestions[topic] = self.generateQuestionsFromTopic(topic, category)
+                    self.topicsAndQuestions[topic] = topicsAndQuestions[topic]
+                else:
+                    topicsAndQuestions[topic] = self.topicsAndQuestions[topic]
+            # self.topicsAndQuestions = topicsAndQuestions
         return topicsAndQuestions
 
     def extractListFromResponse(self, text):
@@ -879,63 +637,17 @@ class TopicModel(metaclass=SingletonMeta):
 
         # Convert the list string to an actual Python list
         list_string = text[start_index:end_index]
-        items = ast.literal_eval(list_string)
-
-        # Now `credit_card_questions` is a Python list
-        #for item in items:
-        #    #print(item)
+        try:
+            items = ast.literal_eval(list_string)
+            # Ensure the result is actually a list
+            if not isinstance(items, list):
+                raise ValueError("Extracted content is not a list")
+        except (ValueError, SyntaxError) as e:
+            print(f"Error converting to list: {e}")
+            return []
         
         return items
 
-    def build_top_model(self, text, delimiter=" "):
-        text = text_preprocessing(text)
-        sparse_vectorizer = CountVectorizer(strip_accents='unicode')
-        sparse_vectors = sparse_vectorizer.fit_transform(text)
-        # #print(sparse_vectors.shape)
-        # To define number of topics
-        n_topics = 1
-
-        # Run LDA to generate topics/clusters
-        lda = LatentDirichletAllocation(n_components=n_topics, max_iter=1000,
-                                        learning_method='online',
-                                        random_state=0)
-
-        lda.fit(sparse_vectors)
-
-        # Show the first n_top_words key words
-        n_top_words = 10
-        feature_names = sparse_vectorizer.get_feature_names()
-
-        t = None
-        for i, topic in enumerate(lda.components_):
-            t = delimiter.join([feature_names[i]
-                               for i in topic.argsort()[:-n_top_words - 1:-1]])
-
-        return t
-
-    # Print the top-n key words
-    def print_top_words(model, feature_names, n_top_words):
-        for topic_idx, topic in enumerate(model.components_):
-            print("Topic #%d:" % topic_idx)
-            print(" ".join([feature_names[i]
-                  for i in topic.argsort()[:-n_top_words - 1:-1]]))
-        print()
-
-    def jaccard_similarity(self, x, y):
-        """ returns the jaccard similarity between two lists """
-        intersection_cardinality = len(set.intersection(*[set(x), set(y)]))
-        union_cardinality = len(set.union(*[set(x), set(y)]))
-        return intersection_cardinality/float(union_cardinality)
-
-    def convert_to_tokens(self, desc: str, delimiter=" "):
-        tokens = self.build_top_model(desc, delimiter)
-
-        return tokens
-
-    def lower_casing(self, sentence):
-        new_sentence = ''.join([(chr(ord(char) + 32) if ord(char) >
-                               64 and ord(char) < 91 else chr(ord(char))) for char in sentence])
-        return new_sentence
     
     def add_stopwords(self, nlp):
         stopwords = set()
@@ -949,7 +661,7 @@ class TopicModel(metaclass=SingletonMeta):
         
         return nlp
 
-    def preprocess_text_2(self, text):
+    def preprocess_text(self, text):
         """Preprocess the input text by removing stopwords, lemmatization, and cleaning."""
         # Lowercase the text
         text = text.lower()
@@ -964,28 +676,11 @@ class TopicModel(metaclass=SingletonMeta):
         # Join tokens back into a single string
         return ' '.join(tokens)
 
-
-    #def preprocess_texts(self, texts):
-        """Preprocess a list of texts."""
-    #    return [self.preprocess_text(text) for text in texts]
-    
-    def text_preprocessing(self, raw_sentence, nlp_tool):
-        token_sentence = nlp_tool(self.lower_casing(raw_sentence))
-        preprocessed_sentence = None
-
-        preprocessed_sentence = [token.lemma_ for token in token_sentence if token.text not in self.stop_words and not token.pos_ ==
-                                 'X' and not token.is_punct and not token.is_digit and not token.is_quote]
-        #preprocessed_sentence = spell_correction(preprocessed_sentence)
-
-        preprocessed_sentence = " ".join(preprocessed_sentence)
-        ##print("processed user sentence: ", preprocessed_sentence)
-        return preprocessed_sentence
-
     def lemmatize_token(self, token):
         """Lemmatize a single token."""
         return self.lemmatizer.lemmatize(token)
 
-    def preprocess_text(self, text):
+    def preprocess_text_LDA(self, text):
         """Preprocess the input text by removing stopwords, lemmatization, and cleaning, and generate n-grams."""
         # Lowercase the text
         text = text.lower()
@@ -1007,30 +702,3 @@ class TopicModel(metaclass=SingletonMeta):
         # Join n-grams back into a single string
         return ' '.join(unique_ngrams)
 
-    def preprocess_texts(self, texts):
-        """Preprocess a list of texts or a single string of sentences."""
-        if isinstance(texts, str):  # If a single string is provided
-            texts = [texts]  # Treat the input as a single document
-        
-        return [self.preprocess_text(text) for text in texts]
-
-
-    # Function for text preprocessing (including plural to singular conversion)
-    """
-    def preprocess_text_for_entity(self, text):
-        # Convert to lowercase
-        text = text.lower()
-        # Remove special characters and numbers, keeping only alphanumeric and spaces
-        text = re.sub(r'[^a-z\s]', '', text)
-        
-        # Convert plural words to singular
-        words = text.split()
-        singular_words = [p.singular_noun(word) if p.singular_noun(word) else word for word in words]
-        
-        # Join the singular words back into a string
-        text = ' '.join(singular_words)
-        
-        # Remove extra spaces
-        text = re.sub(r'\s+', ' ', text).strip()
-        return text
-    """
