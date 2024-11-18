@@ -2,7 +2,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import BaseModel, Field
 
-
 class STTConfig(BaseSettings):
     """ Settings for VAD, ASR and speaker detection """
     sv_thr: float = Field(0.335, description="Speaker verification threshold")

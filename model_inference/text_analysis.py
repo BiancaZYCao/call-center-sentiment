@@ -55,7 +55,7 @@ NUM_OF_TOPIC_QUESTIONS = 2
 # model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Vector store path
-vector_store_path = "../gpt_store3"
+vector_store_path = "./gpt_store3"
 
 # Set the model to use:
 # "entity" or "lda" or "bertopic"
@@ -640,7 +640,7 @@ class TopicModel(metaclass=SingletonMeta):
     
     def add_stopwords(self, nlp):
         stopwords = set()
-        with open('../files/stopwords.txt') as file:  # Ensure the correct file path is used
+        with open('./files/stopwords.txt') as file:  # Ensure the correct file path is used
             stopwords.update([line.strip() for line in file])
 
         for stopword in stopwords:

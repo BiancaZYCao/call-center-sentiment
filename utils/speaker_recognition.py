@@ -1,15 +1,23 @@
 """ ASR & Speaker Recognition Module """
 import os
+from pydantic_settings import BaseSettings
+from pydantic import BaseModel, Field
 # ASR model import
 import soundfile as sf
 from funasr import AutoModel
 from modelscope.pipelines import pipeline
 from modelscope.utils.constant import Tasks
 
-from schema.config import STTConfig
-from main import logger
 
-stt_config = STTConfig()
+class ASRConfig(BaseSettings):
+    sv_thr: float = Field(0.335, description="Speaker verification threshold")
+    chunk_size_ms: int = Field(100, description="Chunk size in milliseconds")
+    sample_rate: int = Field(16000, description="Sample rate in Hz")
+    bit_depth: int = Field(16, description="Bit depth")
+    channels: int = Field(1, description="Number of audio channels")
+
+
+asr_config = ASRConfig()
 
 sv_pipeline = pipeline(
     task='speaker-verification',
@@ -69,11 +77,10 @@ def recognize_agent_speaker_after_vad(audio, sv=True, lang="en"):
         return speaker_label, asr_pipeline(audio, language=lang.strip())
 
     for k, v in recognize_agents.items():
-        res_sv = sv_pipeline([audio, v["data"]], thr=stt_config.sv_thr)
-        logger.debug(f"[speaker check] {k}: {res_sv}")
-        if res_sv["score"] >= stt_config.sv_thr:
-            logger.debug(f"[speaker check identified] {k}: score at {res_sv['score']}")
+        res_sv = sv_pipeline([audio, v["data"]], thr=asr_config.sv_thr)
+        print(f"[speaker check] {k}: {res_sv}")
+        if res_sv["score"] >= asr_config.sv_thr:
+            print(f"[speaker check identified] {k}: score at {res_sv['score']}")
             speaker_label = "Agent"
             break
-
     return speaker_label, asr_pipeline(audio, language=lang.strip())
