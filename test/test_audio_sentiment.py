@@ -1,7 +1,6 @@
-import librosa
-from model_predicate import *
+from model_inference.speech_sentiment import *
 
-wave_file_path = "./speaker/agent_0001.wav"
+wave_file_path = "../speaker/agent_0001.wav"
 if __name__ == "__main__":
     feature_test_instance = calc_feature_all(wave_file_path)
     test_instance = [feature_test_instance[key] for key in selected_feature_name if key in feature_test_instance]

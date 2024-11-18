@@ -1,5 +1,5 @@
 import pandas as pd
-from TopicModel import TopicModel
+from model_inference.text_analysis import TopicModel
 
 sentence = "I want to know the monthly credit limits of OCBC credit cards."
 sentence = "How do I apply for UOB credit card?"

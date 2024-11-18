@@ -5,11 +5,11 @@ import os
 import time
 import warnings
 
-import h5py
+# import h5py
 import pandas as pd
 import pickle
 
-print(h5py.__version__)
+# print(h5py.__version__)
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
@@ -18,7 +18,7 @@ VERSION = 4
 RANDOM_SEED = 7
 import librosa
 import librosa.display
-from feature_extraction_utils import *
+from utils.speech_feature_extraction import *
 
 # from IPython.display import Audio
 
@@ -29,7 +29,7 @@ from tensorflow.keras.models import load_model
 """
 
 
-df_joint_train_aug  = pd.read_csv('feature_name_load.csv', low_memory=False)
+df_joint_train_aug  = pd.read_csv('../feature_name_load.csv', low_memory=False)
 feature_column_names = [i for i in df_joint_train_aug.columns \
                         if i not in ['file_path','renamed_file_path','split','sentiment_value','emotional_category']]
 
@@ -75,9 +75,9 @@ len(selected_feature_name)
 # print(selected_feature_name)
 
 """### Load Model """
-model_file_dir='./models'
-NCS_SEN_CNN_MODEL = load_model("./models/NCS_SEN_CNN_T2_S1S3S2Aa_1008-BG6-7907.h5", compile=False)
-NCA_LAN_MLP_MODEL = load_model("./models/NCS_LAN_MLP_V2_0916-A2-9722.h5", compile=False)
+model_file_dir= '../models'
+NCS_SEN_CNN_MODEL = load_model("../models/NCS_SEN_CNN_T2_S1S3S2Aa_1008-BG6-7907.h5", compile=False)
+NCA_LAN_MLP_MODEL = load_model("../models/NCS_LAN_MLP_V2_0916-A2-9722.h5", compile=False)
 
 def load_pickle_model(model_file_dir):
     """ load pickle model from directory: HistGradBoost, Random Forest etc. """

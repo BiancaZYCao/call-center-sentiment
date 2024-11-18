@@ -1,4 +1,4 @@
-##  EchoMindLite: Intelligent Voice and Sentiment Analysis for Enhanced Call Center Insights in real-time streaming 
+# Intelligent Call Center Assistant System - real-time Sentiment Analysis and information enrichment
 
 It has inherited some enhanced features for [sensevoice](funaudiollm.github.io/):
 - **VAD detection**
@@ -31,7 +31,7 @@ Also install nltk pkgs
 ### Backend API Server - Streaming Real-time Recognition WebSocket Server
 
 ```bash
-python server_wss.py 
+python main.py 
 ```
 
 ### Client Page

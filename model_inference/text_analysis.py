@@ -1,21 +1,17 @@
-import os
 import re
 import ast
 import spacy
 import torch
 import joblib
-import numpy as np
 from collections import defaultdict
 from itertools import islice
 #import inflect
-import TextPreprocessing as tp
+from utils import TextPreprocessing as tp
 #import SingletonMeta
 from openai import OpenAI
 
 import nltk
-from nltk import pos_tag
 from nltk import ngrams
-from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 
@@ -23,15 +19,8 @@ from nltk.stem import WordNetLemmatizer
 # from sentence_transformers import SentenceTransformer
 from llama_index.core import StorageContext, load_index_from_storage
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from sklearn.decomposition import LatentDirichletAllocation
-from TextPreprocessing import text_preprocessing
-from sklearn.cluster import KMeans
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
 from bertopic import BERTopic
-from transformers import LlamaForCausalLM, LlamaTokenizer, LlamaTokenizerFast
 #from huggingface_hub import login
 
 import os
@@ -66,7 +55,7 @@ NUM_OF_TOPIC_QUESTIONS = 2
 # model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Vector store path
-vector_store_path = "./gpt_store3"
+vector_store_path = "../gpt_store3"
 
 # Set the model to use:
 # "entity" or "lda" or "bertopic"
@@ -651,7 +640,7 @@ class TopicModel(metaclass=SingletonMeta):
     
     def add_stopwords(self, nlp):
         stopwords = set()
-        with open('./stopwords.txt') as file:  # Ensure the correct file path is used
+        with open('../files/stopwords.txt') as file:  # Ensure the correct file path is used
             stopwords.update([line.strip() for line in file])
 
         for stopword in stopwords:
