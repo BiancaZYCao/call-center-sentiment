@@ -12,6 +12,7 @@ model.eval()
 # Define label mapping based on the classes your model was trained on
 label_mapping = {0: 'Negative', 1: 'Neutral', 2: 'Positive'}
 
+
 def text_sentiment_inference(text):
     """
     Perform sentiment analysis on a single input text string and return the output class label.
@@ -33,7 +34,7 @@ def text_sentiment_inference(text):
     predicted_label = label_mapping[predicted_class_idx]
     return predicted_label
 
-# Example usage
+# Example usage (test when initialized)
 example_text = "This is the worst travel experience I've ever had." 
 predicted_sentiment = text_sentiment_inference(example_text)
-print(f"Text: '{example_text}' -> Predicted Sentiment: {predicted_sentiment}")
+print(f"[Test] Text: '{example_text}' -> Predicted Sentiment: {predicted_sentiment}")

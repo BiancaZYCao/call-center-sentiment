@@ -1,5 +1,5 @@
 import pandas as pd
-from TopicModel import TopicModel
+from model_inference.text_analysis import TopicModel
 
 sentence = "I want to know the monthly credit limits of OCBC credit cards."
 sentence = "How do I apply for UOB credit card?"
@@ -36,7 +36,7 @@ def testGetTopicsAndQuestions():
 # identified for every input sentences.
 def testWithTranscript():
     # Load the Excel file
-    file_path = 'input/imda_conversation.xlsx'
+    file_path = './imda_conversation.xlsx'
     df = pd.read_excel(file_path)
 
     # Extract relevant columns where dialog_type is "bank"

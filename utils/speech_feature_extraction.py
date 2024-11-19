@@ -1,6 +1,8 @@
 """
 Helper functions for extracting features from sound waves based on Praat and parselmouth.
 Some methods are inspired from: http://www.fon.hum.uva.nl/rob/NKI_TEVA/TEVA/HTML/Analysis.html
+Including some extra features extraction (marker with UNUSED)
+
 """
 
 import math
@@ -201,6 +203,7 @@ def get_harmonics_to_noise_ratio_attributes(sound, harmonics_type='preferred', t
                                             interpolation_method='Parabolic', return_values=False,
                                             replacement_for_nan=0.):
     """
+    UNUSED
     Function to get Harmonics-to-Noise Ratio (HNR) attributes such as minimum HNR, maximum HNR,
     mean HNR, and standard deviation of HNR. HNR is defined as a measure that quantifies the amount
     of additive noise in a voice signal.
@@ -291,6 +294,7 @@ def get_glottal_to_noise_ratio_attributes(sound, horizontal_minimum=0., horizont
                                           minimum_frequency=500., maximum_frequency=4500.,
                                           bandwidth=1000., step=80.):
     """
+    UNUSED
     Function to get Glottal-to-Noise Ratio (GNE) attributes such as minimum GNE, maximum GNE,
     mean GNE, standard deviation of GNE, and sum of GNE. GNE is a measure that indicates whether a
     given voice signal originates from vibrations of the vocal folds or from turbulent noise
@@ -338,6 +342,7 @@ def get_glottal_to_noise_ratio_attributes(sound, horizontal_minimum=0., horizont
 def get_local_jitter(sound, min_time=0., max_time=0., pitch_floor=75., pitch_ceiling=600.,
                      period_floor=0.0001, period_ceiling=0.02, max_period_factor=1.3):
     """
+    UNUSED
     Function to calculate (local) jitter from a periodic PointProcess.
 
     :param (parselmouth.Sound) sound: sound waveform
@@ -369,6 +374,7 @@ def get_local_shimmer(sound, min_time=0., max_time=0., pitch_floor=75., pitch_ce
                       period_floor=0.0001, period_ceiling=0.02, max_period_factor=1.3,
                       max_amplitude_factor=1.6):
     """
+    UNUSED
     Function to calculate (local) shimmer from a periodic PointProcess.
 
     :param (parselmouth.Sound) sound: sound waveform
@@ -467,6 +473,7 @@ def get_formant_attributes(sound, time_step=0., pitch_floor=75., pitch_ceiling=6
                            window_length=0.025, pre_emphasis_from=50.,
                            unit='Hertz', interpolation_method='Linear', replacement_for_nan=0.):
     """
+    UNUSED
     Function to get formant-related attributes such as mean and median formants.
     Adapted from David Feinberg's work: https://github.com/drfeinberg/PraatScripts
 
@@ -574,6 +581,7 @@ def get_formant_attributes(sound, time_step=0., pitch_floor=75., pitch_ceiling=6
 
 def get_speaking_rate(sound, text):
     """
+    UNUSED
     Function to get speaking rate, approximated as number of words divided by total duration.
 
     :param (parselmouth.Sound) sound: sound waveform
@@ -590,6 +598,7 @@ def get_speaking_rate(sound, text):
 def get_lfcc(sound, lpc_method='autocorrelation', prediction_order=16, window_length=0.025,
              time_step=0.005, pre_emphasis_frequency=50., num_coefficients=12):
     """
+    UNUSED
     Function calculate LFCC (Linear Frequency Cepstral Coefficients).
 
     :param (parselmouth.Sound) sound: sound waveform
@@ -666,6 +675,7 @@ def get_mfcc(sound, num_coefficients=12, window_length=0.015, time_step=0.005,
 
 def get_delta(matrix, step_size=2):
     """
+    UNUSED
     Function to get a delta matrix on a given matrix, adapted from:
     http://practicalcryptography.com/miscellaneous/machine-learning/guide-mel-frequency-cepstral-coefficients-mfccs/
     If you get the delta of a MFCC matrix, you will get the velocity of MFCC. If you get the delta

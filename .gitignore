@@ -2,7 +2,7 @@
 /models
 /gpt_store*
 *.wav
-debug.pcm
+*.pcm
 *.ipynb
 __pycache__
 .idea

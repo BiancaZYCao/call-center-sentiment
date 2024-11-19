@@ -1,3 +1,4 @@
+# Basic web & ASR modules
 fastapi
 funasr
 modelscope
@@ -16,7 +17,7 @@ simplejson
 sortedcontainers
 websockets
 
-# new added:
+# for Audio models and feature extraction
 datasets==2.21.0
 transformers==4.37.2
 h5py==3.11.0
@@ -24,20 +25,23 @@ matplotlib==3.9.2
 praat-parselmouth==0.4.4
 tensorflow==2.10.0
 scikit-learn==1.3.0
+librosa
 
-# xiao bao model required:
+# for text topic model required:
 spacy==3.7.2
 openai==1.43.0
 nltk==3.9.1
 llama-index==0.11.4
 sentence-transformers==3.0.1
 # python -m spacy download en_core_web_lg
-
-
 #install vs_BuildTools.exe
 bertopic==0.16.3
 #>>> import nltk
 #>>> nltk.download("punkt_tab")
 #>>> nltk.download('wordnet')
+
+# fix - extra
+pytz==2024.1
+pandas
 
 

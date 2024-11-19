@@ -86,7 +86,7 @@ def combine_ngrams(tokens):
 # Add custom stopwords from a file
 def add_stopwords():
     stopwords_ = set()
-    with open('./stopwords.txt') as file:  # Adjust path as necessary
+    with open('../files/stopwords.txt') as file:  # Adjust path as necessary
         stopwords_.update([stopword.strip().lower() for stopword in file.readlines()])
     stop_words.update(stopwords_)  # Add custom stopwords to the existing set
     return stop_words
