@@ -1,13 +1,15 @@
-# -*- coding: utf-8 -*-
-
-
+""" Speech Sentiment Audio Models"""
 import os
 import time
 import warnings
-
 import h5py
 import pandas as pd
 import pickle
+import librosa
+import librosa.display
+from utils.speech_feature_extraction import *
+
+from tensorflow.keras.models import load_model
 
 print(h5py.__version__)
 
@@ -16,24 +18,17 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.filterwarnings("ignore", category=UserWarning, module="absl")
 VERSION = 4
 RANDOM_SEED = 7
-import librosa
-import librosa.display
-from utils.speech_feature_extraction import *
-
-# from IPython.display import Audio
-
-from tensorflow.keras.models import load_model
-
-"""## Load data - To Define your selected features
-## change to be aligned with your model input!
-"""
 
 
+# Load feature name lists
 df_joint_train_aug = pd.read_csv('./files/feature_name_load.csv', low_memory=False)
-feature_column_names = [i for i in df_joint_train_aug.columns \
-                        if i not in ['file_path','renamed_file_path','split','sentiment_value','emotional_category']]
+feature_column_names = [i for i in df_joint_train_aug.columns\
+                        if i not in ['file_path','renamed_file_path','split',
+                                     'sentiment_value','emotional_category']]
+
 
 def generate_selected_features_by_type(feature_column_names, input, stats, number=1):
+    """ Generate selected features by config """
     selected_result = []
     for name in feature_column_names:
         if input + "_" + stats in name:
@@ -70,17 +65,16 @@ selected_feature_names128 = feature_MFCC20_mean + feature_MFCC20_std + feature_m
 
 selected_feature_name = selected_feature_names128
 len(selected_feature_name)
-### define the selected feature names same as trained model!!!
-
+# Important Note: define the selected feature names same as trained model!!!
 # print(selected_feature_name)
 
 """### Load Model """
-model_file_dir= './models'
+model_file_dir = './models'
 NCS_SEN_CNN_MODEL = load_model("./models/NCS_SEN_CNN_T2_S1S3S2Aa_1008-BG6-7907.h5", compile=False)
 NCA_LAN_MLP_MODEL = load_model("./models/NCS_LAN_MLP_V2_0916-A2-9722.h5", compile=False)
 
 def load_pickle_model(model_file_dir):
-    """ load pickle model from directory: HistGradBoost, Random Forest etc. """
+    """ load pickle models from directory: for HistGradBoost, Random Forest etc. """
     if not os.path.exists(model_file_dir):
         raise FileNotFoundError(f"Model file not found at: {model_file_dir}")
     try:
@@ -95,6 +89,7 @@ RF_CLS_MODEL = load_pickle_model(f"{model_file_dir}/RandomForestClassifier_model
 LGBM_CLS_MODEL = load_pickle_model(f"{model_file_dir}/LGBMClassifier_model_3cls_128feat_82acc.pkl")
 
 def pickle_model_predict(model_cls, test_instance):
+    """ inference using pickle model by probability """
     cls_sign_map = {'neutral': 0, 'positive': 1, 'negative': -1}
     try:
         instance_input = np.array(test_instance).reshape(1, -1)
@@ -194,6 +189,7 @@ def calc_feature_all(filename):
 
 
 def calc_feature_all_from_binary(x: np.ndarray):
+    """ feature calculation for streaming signals """
     sample_rate = 16000
 
     mfccs_20 = librosa.feature.mfcc(y=x, sr=sample_rate, n_mfcc=20)
@@ -242,6 +238,7 @@ def calc_feature_all_from_binary(x: np.ndarray):
     return feature_combined
 
 def preprocess_signal(x_input):
+    """ check duration and do padding """
     sample_rate = 16000  # Example sample rate
     min_duration_sec = 0.2  # Minimum duration in seconds
     min_duration_samples = int(min_duration_sec * sample_rate)  # Convert to samples
@@ -283,6 +280,10 @@ def preprocess_signal(x_input):
 
 
 def audio_model_inference(x_input: np.ndarray):
+    """
+    main function to run inference - configurable to improve performance
+    TODO: ensemble methods on top of models
+    """
     try:
         start = time.time()
         x = preprocess_signal(x_input)

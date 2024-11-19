@@ -6,7 +6,7 @@ import joblib
 from collections import defaultdict
 from itertools import islice
 #import inflect
-from utils import TextPreprocessing as tp
+from utils import text_preprocessing as tp
 #import SingletonMeta
 from openai import OpenAI
 

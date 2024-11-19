@@ -1,4 +1,4 @@
-""" text formatting """
+""" text formatting for ASR part """
 
 emo_dict = {
     "<|HAPPY|>": "😊",
